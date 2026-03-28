@@ -9,6 +9,7 @@ import '../models/models.dart' as models;
 import 'api_client.dart';
 
 class SyncService {
+  static const int _maxRetryCount = 6;
   final ApiClient _apiClient;
   final String tenantId;
   late final db.AppDatabase _database;
@@ -22,8 +23,8 @@ class SyncService {
     return connectivityResult != ConnectivityResult.none;
   }
 
-  Future<void> syncAllData() async {
-    if (!await isOnline()) return;
+  Future<bool> syncAllData() async {
+    if (!await isOnline()) return false;
 
     try {
       // Download latest data from server
@@ -31,40 +32,45 @@ class SyncService {
 
       // Upload pending changes
       await _uploadPendingChanges();
+      return true;
     } catch (e) {
-      print('Sync error: $e');
+      return false;
     }
   }
 
   Future<void> _downloadData() async {
-    try {
-      final response = await _apiClient.get('/offline-sync/data');
-      if (response.statusCode == 200) {
-        final data = response.data;
+    final response = await _apiClient.get('/offline-sync/data');
+    if (response.statusCode == 200) {
+      final data = response.data;
 
-        // Sync products
-        if (data['products'] != null) {
-          await _syncProducts(data['products']);
-        }
-
-        // Sync customers
-        if (data['customers'] != null) {
-          await _syncCustomers(data['customers']);
-        }
-
-        // Sync employees
-        if (data['employees'] != null) {
-          await _syncEmployees(data['employees']);
-        }
-
-        // Sync sales
-        if (data['sales'] != null) {
-          await _syncSales(data['sales']);
-        }
+      // Sync products
+      if (data['products'] != null) {
+        await _syncProducts(data['products']);
       }
-    } catch (e) {
-      print('Download data error: $e');
+
+      // Sync customers
+      if (data['customers'] != null) {
+        await _syncCustomers(data['customers']);
+      }
+
+      // Sync employees
+      if (data['employees'] != null) {
+        await _syncEmployees(data['employees']);
+      }
+
+      // Sync sales
+      if (data['sales'] != null) {
+        await _syncSales(data['sales']);
+      }
+      return;
     }
+
+    throw DioException(
+      requestOptions: response.requestOptions,
+      response: response,
+      message: 'Unexpected status code during download: ${response.statusCode}',
+      type: DioExceptionType.badResponse,
+    );
   }
 
   Future<void> _syncProducts(List<dynamic> productsData) async {
@@ -127,6 +133,15 @@ class SyncService {
     final pendingItems = await _database.getPendingSyncItems();
 
     for (final item in pendingItems) {
+      if (item.retryCount >= _maxRetryCount) {
+        // Keep in queue for manual conflict resolution review.
+        continue;
+      }
+
+      if (!_isRetryWindowOpen(item)) {
+        continue;
+      }
+
       try {
         final data = jsonDecode(item.data);
         Response response;
@@ -160,11 +175,28 @@ class SyncService {
           // Increment retry count
           await _database.incrementRetryCount(item.id);
         }
+      } on DioException catch (e) {
+        // Treat conflict/validation/server errors as retriable queue entries.
+        if (e.response?.statusCode == 409 ||
+            e.response?.statusCode == 422 ||
+            e.response?.statusCode == 500) {
+          await _database.incrementRetryCount(item.id);
+          continue;
+        }
+
+        await _database.incrementRetryCount(item.id);
       } catch (e) {
-        print('Upload error for ${item.entityTable}/${item.recordId}: $e');
         await _database.incrementRetryCount(item.id);
       }
     }
+  }
+
+  bool _isRetryWindowOpen(db.SyncQueueData item) {
+    if (item.retryCount <= 0) return true;
+
+    final backoffSeconds = (5 * (1 << item.retryCount)).clamp(5, 300);
+    final nextTryAt = item.createdAt.add(Duration(seconds: backoffSeconds));
+    return DateTime.now().isAfter(nextTryAt);
   }
 
   Future<void> queueOperation(
@@ -182,6 +214,10 @@ class SyncService {
     );
 
     await _database.insertSyncItem(syncItem);
+  }
+
+  Future<List<db.SyncQueueData>> getPendingQueue() {
+    return _database.getPendingSyncItems();
   }
 
   void dispose() {

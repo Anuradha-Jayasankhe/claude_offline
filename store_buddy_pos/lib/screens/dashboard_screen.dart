@@ -1,12 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../blocs/auth/auth_bloc.dart';
+import '../database/database.dart' as db;
+import '../models/models.dart' as domain;
+import '../repositories/customer_repository.dart';
+import '../repositories/product_repository.dart';
+import '../repositories/sale_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
@@ -51,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icons.warehouse_rounded,
     ),
     _NavItem(key: 'employees', label: 'Employees', icon: Icons.badge_rounded),
+    _NavItem(key: 'users', label: 'Users', icon: Icons.manage_accounts_rounded),
     _NavItem(key: 'reports', label: 'Reports', icon: Icons.bar_chart_rounded),
     _NavItem(key: 'settings', label: 'Settings', icon: Icons.settings_rounded),
     _NavItem(
@@ -102,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       minStock: 10,
     ),
   ];
+  List<String> _productCategories = ['Food', 'Beverage', 'General'];
   final List<_CustomerItem> _customers = [
     _CustomerItem(
       id: 'C001',
@@ -113,10 +122,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_EmployeeItem> _employees = [
     _EmployeeItem(id: 'E001', name: 'Admin Owner', role: 'OWNER', active: true),
   ];
+  final List<_UserItem> _users = [
+    _UserItem(
+      id: 'U001',
+      name: 'Owner User',
+      email: 'owner@store.local',
+      role: 'OWNER',
+      active: true,
+    ),
+  ];
   final List<_SupplierItem> _suppliers = [];
   final List<_CouponItem> _coupons = [];
   final List<_ServiceJobItem> _serviceJobs = [];
   final List<_SaleRecord> _sales = [];
+  final List<_HeldCart> _heldCarts = [];
   final List<_InvoiceItem> _invoices = [];
   final List<_PurchaseOrderItem> _purchaseOrders = [];
   final List<_SyncItem> _syncQueue = [];
@@ -133,10 +152,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _receiptShowTax = true;
   bool _receiptShowLogo = false;
   String _receiptNote = 'No refunds without invoice';
+  String _openFrom = '08:00';
+  String _openTo = '22:00';
+  bool _acceptCash = true;
+  bool _acceptCard = true;
+  bool _acceptCheque = false;
+  bool _acceptInstallment = false;
+  String _integrationMode = 'Cloud Sync';
+  String _integrationWebhook = '';
+  bool _notifyLowStock = true;
+  bool _notifyDailySummary = true;
+  bool _notifyReturns = true;
+  bool _cashDrawerEnabled = true;
+  bool _cashDrawerRequirePin = false;
+  String _cashDrawerPin = '';
+  String _receiptPaper = '80mm';
+  String _receiptMargin = '8';
+  String _receiptFontScale = '1.0';
+  String _selectedReportType = 'sales';
+  String _settingsTab = 'general';
   DateTime? _lastSyncAt;
+  String? _lastSyncError;
 
   SyncService? _syncService;
+  db.AppDatabase? _appDatabase;
+  ProductRepository? _productRepository;
+  CustomerRepository? _customerRepository;
+  SaleRepository? _saleRepository;
+  String? _activeTenantId;
+  String _currentUserRole = 'manager';
+  bool _coreDataLoaded = false;
   bool _syncInProgress = false;
+  bool _syncQueueLoaded = false;
 
   @override
   void initState() {
@@ -159,24 +206,207 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  void _enqueueSync(String action, String module, String ref) {
-    _syncQueue.insert(
-      0,
-      _SyncItem(
-        timestamp: DateTime.now(),
-        action: action,
-        module: module,
-        reference: ref,
-      ),
-    );
-    _persistWorkspaceData();
-    _triggerRealtimeSync(action: action, module: module, reference: ref);
+  Future<void> _enqueueSync(String action, String module, String ref) async {
+    if (_syncService == null) return;
+
+    await _syncService!.queueOperation(action, module, ref, {
+      'id': ref,
+      'module': module,
+      'action': action,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
+    await _refreshPendingSyncQueue();
+    await _persistWorkspaceData();
+
+    await _triggerRealtimeSync(action: action, module: module, reference: ref);
+  }
+
+  Future<void> _refreshPendingSyncQueue() async {
+    if (_syncService == null) return;
+
+    final pending = await _syncService!.getPendingQueue();
+    if (!mounted) return;
+
+    setState(() {
+      _syncQueue
+        ..clear()
+        ..addAll(
+          pending
+              .map(
+                (item) => _SyncItem(
+                  timestamp: item.createdAt,
+                  action: item.operation,
+                  module: item.entityTable,
+                  reference: item.recordId,
+                ),
+              )
+              .toList(),
+        );
+    });
   }
 
   void _ensureSyncService(String tenantId) {
     if (_syncService != null) return;
     final apiClient = context.read<ApiClient>();
     _syncService = SyncService(apiClient, tenantId);
+  }
+
+  void _ensureRepositories(String tenantId) {
+    _appDatabase ??= db.AppDatabase(tenantId);
+    _activeTenantId = tenantId;
+    _productRepository ??= ProductRepository(_appDatabase!, _syncService);
+    _customerRepository ??= CustomerRepository(_appDatabase!, _syncService);
+    _saleRepository ??= SaleRepository(_appDatabase!, _syncService);
+
+    if (!_coreDataLoaded) {
+      _coreDataLoaded = true;
+      _loadCoreDataFromRepositories();
+    }
+  }
+
+  Future<void> _loadCoreDataFromRepositories() async {
+    if (_productRepository == null ||
+        _customerRepository == null ||
+        _saleRepository == null) {
+      return;
+    }
+
+    final repoProducts = await _productRepository!.getAllProducts();
+    final repoCustomers = await _customerRepository!.getAllCustomers();
+    final repoSales = await _saleRepository!.getAllSales();
+
+    if (!mounted) return;
+    setState(() {
+      if (repoProducts.isNotEmpty) {
+        _products
+          ..clear()
+          ..addAll(repoProducts.map(_fromDomainProduct));
+      }
+
+      if (repoCustomers.isNotEmpty) {
+        _customers
+          ..clear()
+          ..addAll(repoCustomers.map(_fromDomainCustomer));
+        _selectedCustomerId = _customers.first.id;
+      }
+
+      if (repoSales.isNotEmpty) {
+        _sales
+          ..clear()
+          ..addAll(repoSales.map(_fromDomainSale));
+      }
+    });
+  }
+
+  domain.Product _toDomainProduct(_ProductItem item) {
+    final tenantId = _activeTenantId ?? 'local';
+    return domain.Product(
+      id: item.id,
+      tenantId: tenantId,
+      name: item.name,
+      sku: null,
+      barcode: null,
+      price: item.price,
+      costPrice: null,
+      category: item.category,
+      type: 'PRODUCT',
+      unitOfMeasure: 'PIECE',
+      stock: item.stock.toDouble(),
+      minStock: item.minStock.toDouble(),
+      locationId: null,
+      synced: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  _ProductItem _fromDomainProduct(domain.Product p) {
+    return _ProductItem(
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      stock: p.stock.toInt(),
+      minStock: p.minStock.toInt(),
+    );
+  }
+
+  domain.Customer _toDomainCustomer(_CustomerItem item) {
+    final tenantId = _activeTenantId ?? 'local';
+    return domain.Customer(
+      id: item.id,
+      tenantId: tenantId,
+      name: item.name,
+      phone: item.phone,
+      email: item.email.isEmpty ? null : item.email,
+      address: null,
+      creditLimit: item.creditLimit,
+      currentBalance: item.currentBalance,
+      synced: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  _CustomerItem _fromDomainCustomer(domain.Customer c) {
+    return _CustomerItem(
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email ?? '',
+      creditLimit: c.creditLimit,
+      currentBalance: c.currentBalance,
+      loyaltyPoints: 0,
+    );
+  }
+
+  domain.Sale _toDomainSale(_SaleRecord sale, List<_CartLine> lines) {
+    final tenantId = _activeTenantId ?? 'local';
+    final items = lines
+        .map(
+          (line) => domain.SaleItem(
+            id: '${sale.id}-${line.product.id}',
+            saleId: sale.id,
+            productId: line.product.id,
+            productName: line.product.name,
+            quantity: line.qty.toDouble(),
+            unitPrice: line.product.price,
+            total: line.product.price * line.qty,
+            tenantId: tenantId,
+          ),
+        )
+        .toList();
+
+    return domain.Sale(
+      id: sale.id,
+      tenantId: tenantId,
+      customerId: _selectedCustomerId,
+      employeeId: 'EMP-LOCAL',
+      total: sale.total,
+      tax: sale.tax,
+      discount: 0,
+      paymentMethod: sale.paymentMethod,
+      status: sale.status,
+      locationId: _storeLocation,
+      synced: false,
+      createdAt: sale.createdAt,
+      updatedAt: DateTime.now(),
+      items: items,
+    );
+  }
+
+  _SaleRecord _fromDomainSale(domain.Sale s) {
+    return _SaleRecord(
+      id: s.id,
+      customerName: s.customer?.name ?? 'Walk-in Customer',
+      paymentMethod: s.paymentMethod,
+      subtotal: s.total - s.tax,
+      tax: s.tax,
+      total: s.total,
+      status: s.status,
+      createdAt: s.createdAt ?? DateTime.now(),
+    );
   }
 
   Future<void> _triggerRealtimeSync({
@@ -188,39 +418,476 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _syncInProgress = true;
 
     try {
-      await _syncService!.queueOperation(action, module, reference, {
-        'id': reference,
-        'module': module,
-        'action': action,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      await _syncService!.syncAllData();
+      final synced = await _syncService!.syncAllData();
+      if (!synced) {
+        if (!mounted) return;
+        setState(() {
+          _lastSyncError = 'Realtime sync failed. Will retry later.';
+        });
+        await _refreshPendingSyncQueue();
+        await _persistWorkspaceData();
+        return;
+      }
 
+      await _refreshPendingSyncQueue();
       if (!mounted) return;
       setState(() {
-        if (_syncQueue.isNotEmpty) {
-          _syncQueue.removeAt(0);
-        }
         _lastSyncAt = DateTime.now();
+        _lastSyncError = null;
       });
       await _persistWorkspaceData();
     } catch (_) {
       // keep pending items in local queue if sync failed
+      if (!mounted) return;
+      setState(() {
+        _lastSyncError = 'Sync error occurred. Pending items kept locally.';
+      });
+      await _refreshPendingSyncQueue();
     } finally {
       _syncInProgress = false;
     }
+  }
+
+  Future<void> _runManualSync() async {
+    if (_syncService == null || _syncInProgress) return;
+
+    setState(() => _syncInProgress = true);
+    try {
+      final synced = await _syncService!.syncAllData();
+      if (!mounted) return;
+
+      if (synced) {
+        await _refreshPendingSyncQueue();
+        setState(() {
+          _lastSyncAt = DateTime.now();
+          _lastSyncError = null;
+        });
+        await _persistWorkspaceData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Manual sync completed successfully')),
+        );
+      } else {
+        setState(() {
+          _lastSyncError =
+              'Manual sync could not complete. Check connectivity.';
+        });
+        await _refreshPendingSyncQueue();
+        await _persistWorkspaceData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Manual sync failed (offline/server issue)'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _lastSyncError = 'Unexpected sync error during manual sync.';
+      });
+      await _refreshPendingSyncQueue();
+      await _persistWorkspaceData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Manual sync failed unexpectedly')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncInProgress = false);
+      }
+    }
+  }
+
+  String _syncStatusLabel() {
+    if (_syncInProgress) return 'Syncing...';
+    if (_lastSyncError != null) return 'Sync failed';
+    if (_lastSyncAt != null) return 'Synced';
+    return 'Not synced';
+  }
+
+  Color _syncStatusColor() {
+    if (_syncInProgress) return const Color(0xFF1463FF);
+    if (_lastSyncError != null) return const Color(0xFFE35D5D);
+    if (_lastSyncAt != null) return const Color(0xFF0B9F69);
+    return const Color(0xFF8A90A2);
+  }
+
+  bool get _isOwner => _currentUserRole.toLowerCase() == 'owner';
+  bool get _isManager => _currentUserRole.toLowerCase() == 'manager';
+  bool get _isCashier => _currentUserRole.toLowerCase() == 'cashier';
+  bool get _canManageCatalog => _isOwner || _isManager;
+  bool get _canManageEmployees => _isOwner || _isManager;
+  bool get _canManageSettings => _isOwner || _isManager;
+  bool get _canChangeSalesStatus => _isOwner || _isManager;
+  bool get _canRunSync => !_isCashier;
+
+  List<_NavItem> _visibleNavItems() {
+    if (_isOwner) return _storeNavItems;
+
+    if (_isManager) {
+      return _storeNavItems;
+    }
+
+    const cashierAllowed = {
+      'dashboard',
+      'pos',
+      'sales',
+      'customers',
+      'reports',
+      'settings',
+    };
+    return _storeNavItems
+        .where((item) => cashierAllowed.contains(item.key))
+        .toList();
+  }
+
+  String _money(double amount) => '$_currency ${amount.toStringAsFixed(2)}';
+
+  int _loyaltyPointsForAmount(double amount) => (amount ~/ 100).toInt();
+
+  final List<_SettingsTabItem> _settingsTabs = const [
+    _SettingsTabItem(key: 'general', label: 'General', icon: Icons.settings),
+    _SettingsTabItem(
+      key: 'hours',
+      label: 'Opening Hours',
+      icon: Icons.schedule,
+    ),
+    _SettingsTabItem(key: 'payments', label: 'Payments', icon: Icons.payments),
+    _SettingsTabItem(key: 'tax', label: 'Taxes & Charges', icon: Icons.percent),
+    _SettingsTabItem(
+      key: 'receipt',
+      label: 'Receipt',
+      icon: Icons.receipt_long,
+    ),
+    _SettingsTabItem(
+      key: 'integrations',
+      label: 'Integrations',
+      icon: Icons.link,
+    ),
+    _SettingsTabItem(
+      key: 'notifications',
+      label: 'Notifications',
+      icon: Icons.notifications,
+    ),
+    _SettingsTabItem(
+      key: 'cash',
+      label: 'Cash Drawer',
+      icon: Icons.point_of_sale,
+    ),
+  ];
+
+  Future<void> _exportReportsCsv() async {
+    final buffer = StringBuffer();
+    buffer.writeln('metric,value');
+    final totalRevenue = _sales.fold<double>(0, (sum, s) => sum + s.total);
+    final completed = _sales.where((s) => s.status == 'COMPLETED').length;
+    final cancelled = _sales.where((s) => s.status == 'CANCELLED').length;
+    final returned = _sales.where((s) => s.status == 'RETURNED').length;
+    final lowStock = _products.where((p) => p.stock <= p.minStock).length;
+    buffer.writeln('total_revenue,${totalRevenue.toStringAsFixed(2)}');
+    buffer.writeln('completed_sales,$completed');
+    buffer.writeln('cancelled_sales,$cancelled');
+    buffer.writeln('returned_sales,$returned');
+    buffer.writeln('customers,${_customers.length}');
+    buffer.writeln('low_stock_products,$lowStock');
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report CSV copied to clipboard')),
+    );
+  }
+
+  Future<void> _holdCurrentCart() async {
+    if (_cart.isEmpty) return;
+
+    final held = _HeldCart(
+      id: 'HC${DateTime.now().millisecondsSinceEpoch}',
+      customerId: _selectedCustomerId,
+      paymentMethod: _paymentMethodController.value,
+      items: Map<String, int>.from(_cart),
+      createdAt: DateTime.now(),
+    );
+
+    setState(() {
+      _heldCarts.insert(0, held);
+      _cart.clear();
+    });
+    await _persistWorkspaceData();
+  }
+
+  Future<void> _resumeHeldCart() async {
+    if (_heldCarts.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No held carts available')));
+      return;
+    }
+
+    final selected = await showDialog<_HeldCart>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Resume Held Cart'),
+        content: SizedBox(
+          width: 420,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _heldCarts.length,
+            itemBuilder: (context, index) {
+              final held = _heldCarts[index];
+              final itemsCount = held.items.values.fold<int>(
+                0,
+                (s, q) => s + q,
+              );
+              return ListTile(
+                title: Text('Cart ${held.id}'),
+                subtitle: Text(
+                  'Items: $itemsCount • ${held.createdAt.toLocal()}',
+                ),
+                onTap: () => Navigator.pop(context, held),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null) return;
+
+    setState(() {
+      _cart
+        ..clear()
+        ..addAll(selected.items);
+      _selectedCustomerId = selected.customerId;
+      if (selected.paymentMethod != null &&
+          selected.paymentMethod!.isNotEmpty) {
+        _paymentMethodController.value = selected.paymentMethod!;
+      }
+      _heldCarts.removeWhere((x) => x.id == selected.id);
+    });
+    await _persistWorkspaceData();
+  }
+
+  Future<String?> _showReturnReasonDialog() async {
+    final reasonController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Return Reason'),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.pop(context, reasonController.text.trim()),
+            child: const Text('Confirm Return'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _manageCategories() async {
+    final updated = await showDialog<List<String>>(
+      context: context,
+      builder: (context) {
+        final items = List<String>.from(_productCategories);
+        final inputController = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Product Categories'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: inputController,
+                          decoration: const InputDecoration(
+                            labelText: 'New Category',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          final value = inputController.text.trim();
+                          if (value.isEmpty) return;
+                          if (items.any((x) => x.toLowerCase() == value.toLowerCase())) return;
+                          setLocal(() => items.add(value));
+                          inputController.clear();
+                        },
+                        child: const Text('Add'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 240,
+                    child: ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final category = items[index];
+                        return ListTile(
+                          title: Text(category),
+                          trailing: IconButton(
+                            onPressed: () {
+                              final inUse = _products.any(
+                                (p) => p.category.toLowerCase() == category.toLowerCase(),
+                              );
+                              if (inUse) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Category is used by products and cannot be removed'),
+                                  ),
+                                );
+                                return;
+                              }
+                              setLocal(() => items.removeAt(index));
+                            },
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, items),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (updated == null) return;
+    setState(() {
+      _productCategories = updated.toSet().toList();
+      if (_productCategories.isEmpty) {
+        _productCategories = ['General'];
+      }
+    });
+    await _persistWorkspaceData();
+  }
+
+  Future<int?> _showAdjustStockDialog(_ProductItem product) async {
+    final controller = TextEditingController(text: product.stock.toString());
+    return showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Adjust Stock • ${product.name}'),
+        content: SizedBox(
+          width: 360,
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'New Stock Quantity',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text.trim());
+              if (value == null || value < 0) return;
+              Navigator.pop(context, value);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSaleDetails(_SaleRecord sale) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Sale Details • ${sale.id}'),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Customer: ${sale.customerName}'),
+              Text('Date: ${sale.createdAt.toLocal()}'),
+              Text('Payment: ${sale.paymentMethod}'),
+              Text('Status: ${sale.status}'),
+              const SizedBox(height: 10),
+              Text('Subtotal: ${_money(sale.subtotal)}'),
+              Text('Tax: ${_money(sale.tax)}'),
+              Text(
+                'Total: ${_money(sale.total)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (sale.returnReason != null && sale.returnReason!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text('Return Reason: ${sale.returnReason}'),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _persistWorkspaceData() async {
     final prefs = await SharedPreferences.getInstance();
     final payload = {
       'products': _products.map((e) => e.toJson()).toList(),
+      'productCategories': _productCategories,
       'customers': _customers.map((e) => e.toJson()).toList(),
       'employees': _employees.map((e) => e.toJson()).toList(),
+      'users': _users.map((e) => e.toJson()).toList(),
       'suppliers': _suppliers.map((e) => e.toJson()).toList(),
       'coupons': _coupons.map((e) => e.toJson()).toList(),
       'serviceJobs': _serviceJobs.map((e) => e.toJson()).toList(),
       'sales': _sales.map((e) => e.toJson()).toList(),
+      'heldCarts': _heldCarts.map((e) => e.toJson()).toList(),
       'invoices': _invoices.map((e) => e.toJson()).toList(),
       'purchaseOrders': _purchaseOrders.map((e) => e.toJson()).toList(),
       'syncQueue': _syncQueue.map((e) => e.toJson()).toList(),
@@ -234,6 +901,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'receiptShowTax': _receiptShowTax,
         'receiptShowLogo': _receiptShowLogo,
         'receiptNote': _receiptNote,
+        'openFrom': _openFrom,
+        'openTo': _openTo,
+        'acceptCash': _acceptCash,
+        'acceptCard': _acceptCard,
+        'acceptCheque': _acceptCheque,
+        'acceptInstallment': _acceptInstallment,
+        'integrationMode': _integrationMode,
+        'integrationWebhook': _integrationWebhook,
+        'notifyLowStock': _notifyLowStock,
+        'notifyDailySummary': _notifyDailySummary,
+        'notifyReturns': _notifyReturns,
+        'cashDrawerEnabled': _cashDrawerEnabled,
+        'cashDrawerRequirePin': _cashDrawerRequirePin,
+        'cashDrawerPin': _cashDrawerPin,
+        'receiptPaper': _receiptPaper,
+        'receiptMargin': _receiptMargin,
+        'receiptFontScale': _receiptFontScale,
         'lastSyncAt': _lastSyncAt?.toIso8601String(),
       },
     };
@@ -252,11 +936,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final productList = (decoded['products'] as List<dynamic>? ?? [])
           .map((e) => _ProductItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+        final categoryList = (decoded['productCategories'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
       final customerList = (decoded['customers'] as List<dynamic>? ?? [])
           .map((e) => _CustomerItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       final employeeList = (decoded['employees'] as List<dynamic>? ?? [])
           .map((e) => _EmployeeItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      final userList = (decoded['users'] as List<dynamic>? ?? [])
+          .map((e) => _UserItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       final supplierList = (decoded['suppliers'] as List<dynamic>? ?? [])
           .map((e) => _SupplierItem.fromJson(Map<String, dynamic>.from(e)))
@@ -269,6 +960,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .toList();
       final salesList = (decoded['sales'] as List<dynamic>? ?? [])
           .map((e) => _SaleRecord.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      final heldCartList = (decoded['heldCarts'] as List<dynamic>? ?? [])
+          .map((e) => _HeldCart.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       final invoiceList = (decoded['invoices'] as List<dynamic>? ?? [])
           .map((e) => _InvoiceItem.fromJson(Map<String, dynamic>.from(e)))
@@ -287,6 +981,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _products
           ..clear()
           ..addAll(productList);
+        _productCategories = categoryList.isEmpty
+            ? (_products.map((p) => p.category).toSet().toList()..add('General'))
+            : categoryList.toSet().toList();
         _customers
           ..clear()
           ..addAll(
@@ -315,6 +1012,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ]
                 : employeeList,
           );
+        _users
+          ..clear()
+          ..addAll(
+            userList.isEmpty
+                ? [
+                    _UserItem(
+                      id: 'U001',
+                      name: 'Owner User',
+                      email: 'owner@store.local',
+                      role: 'OWNER',
+                      active: true,
+                    ),
+                  ]
+                : userList,
+          );
         _suppliers
           ..clear()
           ..addAll(supplierList);
@@ -327,6 +1039,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _sales
           ..clear()
           ..addAll(salesList);
+        _heldCarts
+          ..clear()
+          ..addAll(heldCartList);
         _invoices
           ..clear()
           ..addAll(invoiceList);
@@ -346,9 +1061,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _receiptShowTax = settings['receiptShowTax'] ?? _receiptShowTax;
         _receiptShowLogo = settings['receiptShowLogo'] ?? _receiptShowLogo;
         _receiptNote = settings['receiptNote'] ?? _receiptNote;
+        _openFrom = settings['openFrom'] ?? _openFrom;
+        _openTo = settings['openTo'] ?? _openTo;
+        _acceptCash = settings['acceptCash'] ?? _acceptCash;
+        _acceptCard = settings['acceptCard'] ?? _acceptCard;
+        _acceptCheque = settings['acceptCheque'] ?? _acceptCheque;
+        _acceptInstallment =
+            settings['acceptInstallment'] ?? _acceptInstallment;
+        _integrationMode = settings['integrationMode'] ?? _integrationMode;
+        _integrationWebhook =
+            settings['integrationWebhook'] ?? _integrationWebhook;
+        _notifyLowStock = settings['notifyLowStock'] ?? _notifyLowStock;
+        _notifyDailySummary =
+            settings['notifyDailySummary'] ?? _notifyDailySummary;
+        _notifyReturns = settings['notifyReturns'] ?? _notifyReturns;
+        _cashDrawerEnabled =
+            settings['cashDrawerEnabled'] ?? _cashDrawerEnabled;
+        _cashDrawerRequirePin =
+            settings['cashDrawerRequirePin'] ?? _cashDrawerRequirePin;
+        _cashDrawerPin = settings['cashDrawerPin'] ?? _cashDrawerPin;
+        _receiptPaper = settings['receiptPaper'] ?? _receiptPaper;
+        _receiptMargin = settings['receiptMargin'] ?? _receiptMargin;
+        _receiptFontScale = settings['receiptFontScale'] ?? _receiptFontScale;
         _lastSyncAt = settings['lastSyncAt'] != null
             ? DateTime.tryParse(settings['lastSyncAt'])
             : null;
+        if (!_settingsTabs.any((tab) => tab.key == _settingsTab)) {
+          _settingsTab = 'general';
+        }
         _selectedCustomerId = _customers.first.id;
       });
     } catch (_) {
@@ -360,9 +1100,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required _SaleRecord sale,
     required List<_CartLine> lines,
   }) async {
+    final marginValue =
+        (double.tryParse(_receiptMargin) ?? 8).clamp(2, 30).toDouble();
+    final fontScale =
+        (double.tryParse(_receiptFontScale) ?? 1.0).clamp(0.7, 1.8).toDouble();
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
+        pageFormat: _receiptPageFormat(),
+        margin: pw.EdgeInsets.all(marginValue),
         build: (context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -370,24 +1116,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               pw.Text(
                 _receiptHeader,
                 style: pw.TextStyle(
-                  fontSize: 18,
+                  fontSize: 18 * fontScale,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
               pw.SizedBox(height: 4),
-              pw.Text('Invoice: ${sale.id}'),
-              pw.Text('Date: ${sale.createdAt.toLocal()}'),
-              pw.Text('Customer: ${sale.customerName}'),
+              pw.Text('Invoice: ${sale.id}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+              pw.Text('Date: ${sale.createdAt.toLocal()}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+              pw.Text('Customer: ${sale.customerName}', style: pw.TextStyle(fontSize: 11 * fontScale)),
               pw.SizedBox(height: 12),
               ...lines.map(
                 (line) => pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Expanded(
-                      child: pw.Text('${line.product.name} x${line.qty}'),
+                      child: pw.Text('${line.product.name} x${line.qty}', style: pw.TextStyle(fontSize: 11 * fontScale)),
                     ),
                     pw.Text(
                       '$_currency ${(line.product.price * line.qty).toStringAsFixed(2)}',
+                      style: pw.TextStyle(fontSize: 11 * fontScale),
                     ),
                   ],
                 ),
@@ -396,15 +1143,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Subtotal'),
-                  pw.Text('$_currency ${sale.subtotal.toStringAsFixed(2)}'),
+                  pw.Text('Subtotal', style: pw.TextStyle(fontSize: 11 * fontScale)),
+                  pw.Text('$_currency ${sale.subtotal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 11 * fontScale)),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Tax'),
-                  pw.Text('$_currency ${sale.tax.toStringAsFixed(2)}'),
+                  pw.Text('Tax', style: pw.TextStyle(fontSize: 11 * fontScale)),
+                  pw.Text('$_currency ${sale.tax.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 11 * fontScale)),
                 ],
               ),
               pw.Row(
@@ -412,18 +1159,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   pw.Text(
                     'Total',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12 * fontScale),
                   ),
                   pw.Text(
                     '$_currency ${sale.total.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12 * fontScale),
                   ),
                 ],
               ),
               pw.SizedBox(height: 12),
-              pw.Text(_receiptNote),
+              pw.Text(_receiptNote, style: pw.TextStyle(fontSize: 11 * fontScale)),
               pw.SizedBox(height: 8),
-              pw.Text(_receiptFooter),
+              pw.Text(_receiptFooter, style: pw.TextStyle(fontSize: 11 * fontScale)),
             ],
           );
         },
@@ -431,6 +1178,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     await Printing.layoutPdf(onLayout: (format) async => doc.save());
+  }
+
+  PdfPageFormat _receiptPageFormat() {
+    switch (_receiptPaper) {
+      case '58mm':
+        return PdfPageFormat(58 * PdfPageFormat.mm, 240 * PdfPageFormat.mm);
+      case 'A4':
+        return PdfPageFormat.a4;
+      case '80mm':
+      default:
+        return PdfPageFormat(80 * PdfPageFormat.mm, 300 * PdfPageFormat.mm);
+    }
   }
 
   Future<void> _printDemoReceipt() async {
@@ -622,7 +1381,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStoreShell(AuthAuthenticated state) {
+    _currentUserRole = state.user.role;
+    final visibleNavItems = _visibleNavItems();
+    if (!visibleNavItems.any((item) => item.key == _selectedNavKey)) {
+      _selectedNavKey = visibleNavItems.first.key;
+    }
     _ensureSyncService(state.user.tenantId);
+    _ensureRepositories(state.user.tenantId);
+    if (!_syncQueueLoaded) {
+      _syncQueueLoaded = true;
+      _refreshPendingSyncQueue();
+    }
     return Row(
       children: [
         _buildSidebar(state),
@@ -644,6 +1413,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSidebar(AuthAuthenticated state) {
+    final visibleNavItems = _visibleNavItems();
     return Container(
       width: 240,
       color: const Color(0xFF1F1B54),
@@ -700,10 +1470,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 18),
           Expanded(
             child: ListView.builder(
-              itemCount: _storeNavItems.length,
+              itemCount: visibleNavItems.length,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               itemBuilder: (context, index) {
-                final item = _storeNavItems[index];
+                final item = visibleNavItems[index];
                 final selected = item.key == _selectedNavKey;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
@@ -807,6 +1577,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.notifications_none_rounded),
           ),
           const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _syncStatusColor().withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.sync, size: 14, color: _syncStatusColor()),
+                const SizedBox(width: 6),
+                Text(
+                  _syncStatusLabel(),
+                  style: TextStyle(
+                    color: _syncStatusColor(),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
           CircleAvatar(
             radius: 18,
             backgroundColor: const Color(0xFF5B35D5),
@@ -830,7 +1623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               Text(
-                'Owner',
+                state.user.role.toUpperCase(),
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
             ],
@@ -841,8 +1634,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _selectedPageTitle() {
+    final fallback = _storeNavItems.first;
     return _storeNavItems
-        .firstWhere((item) => item.key == _selectedNavKey)
+        .firstWhere(
+          (item) => item.key == _selectedNavKey,
+          orElse: () => fallback,
+        )
         .label;
   }
 
@@ -862,6 +1659,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildInventoryPage();
       case 'employees':
         return _buildEmployeesPage();
+      case 'users':
+        return _buildUsersPage();
       case 'reports':
         return _buildReportsPage();
       case 'settings':
@@ -883,7 +1682,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _dashboardPage() {
     final totalRevenue = _sales.fold<double>(0, (sum, s) => sum + s.total);
-    final avgOrder = _sales.isEmpty ? 0 : totalRevenue / _sales.length;
+    final avgOrder = _sales.isEmpty ? 0.0 : totalRevenue / _sales.length;
     final lowStock = _products.where((p) => p.stock <= p.minStock).length;
 
     return SingleChildScrollView(
@@ -902,8 +1701,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _MetricCard(
                 title: 'Total Revenue',
-                value: 'Rs ${totalRevenue.toStringAsFixed(2)}',
-                icon: Icons.currency_rupee_rounded,
+                value: _money(totalRevenue),
+                icon: Icons.payments_rounded,
               ),
               _MetricCard(
                 title: 'Total Orders',
@@ -917,7 +1716,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               _MetricCard(
                 title: 'Average Order',
-                value: 'Rs ${avgOrder.toStringAsFixed(2)}',
+                value: _money(avgOrder),
                 icon: Icons.trending_up_rounded,
               ),
             ],
@@ -969,9 +1768,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         subtitle: Text(
                                           '${sale.paymentMethod} • ${sale.createdAt.toLocal()}',
                                         ),
-                                        trailing: Text(
-                                          'Rs ${sale.total.toStringAsFixed(2)}',
-                                        ),
+                                        trailing: Text(_money(sale.total)),
                                       );
                                     },
                                   ),
@@ -1123,7 +1920,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     const SizedBox(height: 4),
                                     Text(p.category),
                                     const Spacer(),
-                                    Text('Rs ${p.price.toStringAsFixed(2)}'),
+                                    Text(_money(p.price)),
                                     Text(
                                       'Stock ${p.stock}',
                                       style: TextStyle(
@@ -1224,9 +2021,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 final line = cartItems[index];
                                 return ListTile(
                                   title: Text(line.product.name),
-                                  subtitle: Text(
-                                    'Rs ${line.product.price.toStringAsFixed(2)}',
-                                  ),
+                                  subtitle: Text(_money(line.product.price)),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -1267,8 +2062,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const Divider(),
                     Text(
-                      'Subtotal: Rs ${subtotal.toStringAsFixed(2)}',
+                      'Subtotal: ${_money(subtotal)}',
                       style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: cartItems.isEmpty
+                                ? null
+                                : _holdCurrentCart,
+                            icon: const Icon(Icons.pause_circle_outline),
+                            label: const Text('Hold Cart'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _heldCarts.isEmpty
+                                ? null
+                                : _resumeHeldCart,
+                            icon: const Icon(Icons.play_circle_outline),
+                            label: Text('Resume (${_heldCarts.length})'),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
@@ -1276,7 +2095,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: ElevatedButton(
                         onPressed: cartItems.isEmpty
                             ? null
-                            : () {
+                            : () async {
                                 final sale = _SaleRecord(
                                   id: 'S${DateTime.now().millisecondsSinceEpoch}',
                                   customerName: _customers
@@ -1293,14 +2112,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   createdAt: DateTime.now(),
                                 );
                                 setState(() {
+                                  final selectedCustomer = _customers
+                                      .firstWhere(
+                                        (c) => c.id == _selectedCustomerId,
+                                        orElse: () => _customers.first,
+                                      );
+                                  selectedCustomer.loyaltyPoints +=
+                                      _loyaltyPointsForAmount(grandTotal);
+                                  if (_paymentMethodController.value ==
+                                      'INSTALLMENT') {
+                                    selectedCustomer.currentBalance +=
+                                        grandTotal;
+                                  }
+
                                   _sales.insert(0, sale);
                                   for (final line in cartItems) {
                                     line.product.stock -= line.qty;
                                   }
                                   _cart.clear();
-                                  _enqueueSync('INSERT', 'sales', sale.id);
                                 });
+                                await _persistWorkspaceData();
+
+                                if (_saleRepository != null) {
+                                  await _saleRepository!.insertSale(
+                                    _toDomainSale(sale, cartItems),
+                                  );
+                                  await _refreshPendingSyncQueue();
+                                  await _triggerRealtimeSync(
+                                    action: 'INSERT',
+                                    module: 'sales',
+                                    reference: sale.id,
+                                  );
+                                } else {
+                                  await _enqueueSync(
+                                    'INSERT',
+                                    'sales',
+                                    sale.id,
+                                  );
+                                }
+
                                 _printReceipt(sale: sale, lines: cartItems);
+                                if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Sale completed: ${sale.id}'),
@@ -1331,17 +2183,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return _moduleCard(
       title: 'Product Management',
-      action: ElevatedButton.icon(
-        onPressed: () async {
-          final item = await _showProductDialog();
-          if (item == null) return;
-          setState(() {
-            _products.add(item);
-            _enqueueSync('INSERT', 'products', item.id);
-          });
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
+      action: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _canManageCatalog ? _manageCategories : null,
+            icon: const Icon(Icons.category_outlined),
+            label: const Text('Categories'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _canManageCatalog
+                ? () async {
+                    final item = await _showProductDialog();
+                    if (item == null) return;
+                    setState(() {
+                      _products.add(item);
+                      if (!_productCategories.any((c) => c.toLowerCase() == item.category.toLowerCase())) {
+                        _productCategories.add(item.category);
+                      }
+                    });
+                    await _persistWorkspaceData();
+
+                    if (_productRepository != null) {
+                      await _productRepository!.insertProduct(
+                        _toDomainProduct(item),
+                      );
+                      await _refreshPendingSyncQueue();
+                      await _triggerRealtimeSync(
+                        action: 'INSERT',
+                        module: 'products',
+                        reference: item.id,
+                      );
+                    } else {
+                      await _enqueueSync('INSERT', 'products', item.id);
+                    }
+                  }
+                : null,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Product'),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1371,24 +2253,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     spacing: 4,
                     children: [
                       IconButton(
-                        onPressed: () async {
-                          final edited = await _showProductDialog(existing: p);
-                          if (edited == null) return;
-                          setState(() {
-                            final i = _products.indexWhere((x) => x.id == p.id);
-                            _products[i] = edited;
-                            _enqueueSync('UPDATE', 'products', edited.id);
-                          });
-                        },
+                        onPressed: _canManageCatalog
+                            ? () async {
+                                final nextStock = await _showAdjustStockDialog(p);
+                                if (nextStock == null) return;
+                                setState(() {
+                                  p.stock = nextStock;
+                                });
+                                await _persistWorkspaceData();
+
+                                if (_productRepository != null) {
+                                  await _productRepository!.updateProduct(
+                                    _toDomainProduct(p),
+                                  );
+                                  await _refreshPendingSyncQueue();
+                                  await _triggerRealtimeSync(
+                                    action: 'UPDATE',
+                                    module: 'products',
+                                    reference: p.id,
+                                  );
+                                } else {
+                                  await _enqueueSync('UPDATE', 'products', p.id);
+                                }
+                              }
+                            : null,
+                        icon: const Icon(Icons.inventory_2_outlined),
+                      ),
+                      IconButton(
+                        onPressed: _canManageCatalog
+                            ? () async {
+                                final edited = await _showProductDialog(
+                                  existing: p,
+                                );
+                                if (edited == null) return;
+                                setState(() {
+                                  final i = _products.indexWhere(
+                                    (x) => x.id == p.id,
+                                  );
+                                  _products[i] = edited;
+                                  if (!_productCategories.any((c) => c.toLowerCase() == edited.category.toLowerCase())) {
+                                    _productCategories.add(edited.category);
+                                  }
+                                });
+                                await _persistWorkspaceData();
+
+                                if (_productRepository != null) {
+                                  await _productRepository!.updateProduct(
+                                    _toDomainProduct(edited),
+                                  );
+                                  await _refreshPendingSyncQueue();
+                                  await _triggerRealtimeSync(
+                                    action: 'UPDATE',
+                                    module: 'products',
+                                    reference: edited.id,
+                                  );
+                                } else {
+                                  await _enqueueSync(
+                                    'UPDATE',
+                                    'products',
+                                    edited.id,
+                                  );
+                                }
+                              }
+                            : null,
                         icon: const Icon(Icons.edit_outlined),
                       ),
                       IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _products.removeWhere((x) => x.id == p.id);
-                            _enqueueSync('DELETE', 'products', p.id);
-                          });
-                        },
+                        onPressed: _canManageCatalog
+                            ? () async {
+                                setState(() {
+                                  _products.removeWhere((x) => x.id == p.id);
+                                });
+                                await _persistWorkspaceData();
+
+                                if (_productRepository != null) {
+                                  await _productRepository!.deleteProduct(p.id);
+                                  await _refreshPendingSyncQueue();
+                                  await _triggerRealtimeSync(
+                                    action: 'DELETE',
+                                    module: 'products',
+                                    reference: p.id,
+                                  );
+                                } else {
+                                  await _enqueueSync(
+                                    'DELETE',
+                                    'products',
+                                    p.id,
+                                  );
+                                }
+                              }
+                            : null,
                         icon: const Icon(Icons.delete_outline),
                       ),
                     ],
@@ -1424,11 +2378,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final sale = _sales[index];
                   return Card(
                     child: ListTile(
-                      title: Text(
-                        '${sale.id} • Rs ${sale.total.toStringAsFixed(2)}',
-                      ),
+                      onTap: () => _showSaleDetails(sale),
+                      title: Text('${sale.id} • ${_money(sale.total)}'),
                       subtitle: Text(
-                        '${sale.customerName} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}',
+                        '${sale.customerName} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}${sale.returnReason != null ? ' • Reason: ${sale.returnReason}' : ''}',
                       ),
                       trailing: DropdownButton<String>(
                         value: sale.status,
@@ -1446,13 +2399,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Text('CANCELLED'),
                           ),
                         ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            sale.status = v;
-                            _enqueueSync('UPDATE', 'sales', sale.id);
-                          });
-                        },
+                        onChanged: _canChangeSalesStatus
+                            ? (v) async {
+                                if (v == null) return;
+                                if (sale.status == v) return;
+
+                                String? reason;
+                                if (v == 'RETURNED') {
+                                  reason = await _showReturnReasonDialog();
+                                  if (reason == null || reason.isEmpty) return;
+                                }
+
+                                setState(() {
+                                  sale.status = v;
+                                  sale.returnReason = v == 'RETURNED'
+                                      ? reason
+                                      : null;
+                                });
+                                await _persistWorkspaceData();
+
+                                if (_saleRepository != null) {
+                                  await _saleRepository!.updateSaleStatus(
+                                    saleId: sale.id,
+                                    status: sale.status,
+                                  );
+                                  await _refreshPendingSyncQueue();
+                                  await _triggerRealtimeSync(
+                                    action: 'UPDATE',
+                                    module: 'sales',
+                                    reference: sale.id,
+                                  );
+                                } else {
+                                  await _enqueueSync(
+                                    'UPDATE',
+                                    'sales',
+                                    sale.id,
+                                  );
+                                }
+                              }
+                            : null,
                       ),
                     ),
                   );
@@ -1474,14 +2459,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _moduleCard(
       title: 'Customer Management',
       action: ElevatedButton.icon(
-        onPressed: () async {
-          final customer = await _showCustomerDialog();
-          if (customer == null) return;
-          setState(() {
-            _customers.add(customer);
-            _enqueueSync('INSERT', 'customers', customer.id);
-          });
-        },
+        onPressed: _canManageCatalog
+            ? () async {
+                final customer = await _showCustomerDialog();
+                if (customer == null) return;
+                setState(() {
+                  _customers.add(customer);
+                });
+                await _persistWorkspaceData();
+
+                if (_customerRepository != null) {
+                  await _customerRepository!.insertCustomer(
+                    _toDomainCustomer(customer),
+                  );
+                  await _refreshPendingSyncQueue();
+                  await _triggerRealtimeSync(
+                    action: 'INSERT',
+                    module: 'customers',
+                    reference: customer.id,
+                  );
+                } else {
+                  await _enqueueSync('INSERT', 'customers', customer.id);
+                }
+              }
+            : null,
         icon: const Icon(Icons.person_add_alt_1),
         label: const Text('Add Customer'),
       ),
@@ -1507,34 +2508,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ListTile(
                     title: Text(c.name),
                     subtitle: Text(
-                      '${c.phone} • ${c.email.isEmpty ? 'No email' : c.email}',
+                      '${c.phone} • ${c.email.isEmpty ? 'No email' : c.email}\n'
+                      'Credit: ${_money(c.currentBalance)} / ${_money(c.creditLimit)} • '
+                      'Points: ${c.loyaltyPoints}',
                     ),
+                    isThreeLine: true,
                     trailing: Wrap(
                       spacing: 4,
                       children: [
                         IconButton(
-                          onPressed: () async {
-                            final edited = await _showCustomerDialog(
-                              existing: c,
-                            );
-                            if (edited == null) return;
-                            setState(() {
-                              final i = _customers.indexWhere(
-                                (x) => x.id == c.id,
-                              );
-                              _customers[i] = edited;
-                              _enqueueSync('UPDATE', 'customers', edited.id);
-                            });
-                          },
+                          onPressed: _canManageCatalog
+                              ? () async {
+                                  final edited = await _showCustomerDialog(
+                                    existing: c,
+                                  );
+                                  if (edited == null) return;
+                                  setState(() {
+                                    final i = _customers.indexWhere(
+                                      (x) => x.id == c.id,
+                                    );
+                                    _customers[i] = edited;
+                                  });
+                                  await _persistWorkspaceData();
+
+                                  if (_customerRepository != null) {
+                                    await _customerRepository!.updateCustomer(
+                                      _toDomainCustomer(edited),
+                                    );
+                                    await _refreshPendingSyncQueue();
+                                    await _triggerRealtimeSync(
+                                      action: 'UPDATE',
+                                      module: 'customers',
+                                      reference: edited.id,
+                                    );
+                                  } else {
+                                    await _enqueueSync(
+                                      'UPDATE',
+                                      'customers',
+                                      edited.id,
+                                    );
+                                  }
+                                }
+                              : null,
                           icon: const Icon(Icons.edit_outlined),
                         ),
                         IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _customers.removeWhere((x) => x.id == c.id);
-                              _enqueueSync('DELETE', 'customers', c.id);
-                            });
-                          },
+                          onPressed: _canManageCatalog
+                              ? () async {
+                                  setState(() {
+                                    _customers.removeWhere((x) => x.id == c.id);
+                                  });
+                                  await _persistWorkspaceData();
+
+                                  if (_customerRepository != null) {
+                                    await _customerRepository!.deleteCustomer(
+                                      c.id,
+                                    );
+                                    await _refreshPendingSyncQueue();
+                                    await _triggerRealtimeSync(
+                                      action: 'DELETE',
+                                      module: 'customers',
+                                      reference: c.id,
+                                    );
+                                  } else {
+                                    await _enqueueSync(
+                                      'DELETE',
+                                      'customers',
+                                      c.id,
+                                    );
+                                  }
+                                }
+                              : null,
                           icon: const Icon(Icons.delete_outline),
                         ),
                       ],
@@ -1553,14 +2597,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _moduleCard(
       title: 'Inventory Management',
       action: ElevatedButton.icon(
-        onPressed: () async {
-          final po = await _showPurchaseOrderDialog();
-          if (po == null) return;
-          setState(() {
-            _purchaseOrders.insert(0, po);
-            _enqueueSync('INSERT', 'purchase_orders', po.id);
-          });
-        },
+        onPressed: _canManageCatalog
+            ? () async {
+                final po = await _showPurchaseOrderDialog();
+                if (po == null) return;
+                setState(() {
+                  _purchaseOrders.insert(0, po);
+                  _enqueueSync('INSERT', 'purchase_orders', po.id);
+                });
+              }
+            : null,
         icon: const Icon(Icons.add_business),
         label: const Text('New Purchase Order'),
       ),
@@ -1588,21 +2634,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          onPressed: () {
-                            setState(() {
-                              p.stock = (p.stock - 1).clamp(0, 1000000).toInt();
-                              _enqueueSync('UPDATE', 'inventory', p.id);
-                            });
-                          },
+                          onPressed: _canManageCatalog
+                              ? () {
+                                  setState(() {
+                                    p.stock = (p.stock - 1)
+                                        .clamp(0, 1000000)
+                                        .toInt();
+                                    _enqueueSync('UPDATE', 'inventory', p.id);
+                                  });
+                                }
+                              : null,
                           icon: const Icon(Icons.remove_circle_outline),
                         ),
                         IconButton(
-                          onPressed: () {
-                            setState(() {
-                              p.stock += 1;
-                              _enqueueSync('UPDATE', 'inventory', p.id);
-                            });
-                          },
+                          onPressed: _canManageCatalog
+                              ? () {
+                                  setState(() {
+                                    p.stock += 1;
+                                    _enqueueSync('UPDATE', 'inventory', p.id);
+                                  });
+                                }
+                              : null,
                           icon: const Icon(Icons.add_circle_outline),
                         ),
                       ],
@@ -1629,7 +2681,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       return ListTile(
                         title: Text('${po.id} • ${po.supplier}'),
                         subtitle: Text(
-                          'Items ${po.itemsCount} • Rs ${po.amount.toStringAsFixed(2)}',
+                          'Items ${po.itemsCount} • ${_money(po.amount)}',
                         ),
                       );
                     },
@@ -1644,14 +2696,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _moduleCard(
       title: 'Employee Management',
       action: ElevatedButton.icon(
-        onPressed: () async {
-          final employee = await _showEmployeeDialog();
-          if (employee == null) return;
-          setState(() {
-            _employees.add(employee);
-            _enqueueSync('INSERT', 'employees', employee.id);
-          });
-        },
+        onPressed: _canManageEmployees
+            ? () async {
+                final employee = await _showEmployeeDialog();
+                if (employee == null) return;
+                setState(() {
+                  _employees.add(employee);
+                  _enqueueSync('INSERT', 'employees', employee.id);
+                });
+              }
+            : null,
         icon: const Icon(Icons.person_add_alt_1),
         label: const Text('Add Employee'),
       ),
@@ -1670,32 +2724,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Switch(
                       value: e.active,
-                      onChanged: (v) {
-                        setState(() {
-                          e.active = v;
-                          _enqueueSync('UPDATE', 'employees', e.id);
-                        });
-                      },
+                      onChanged: _canManageEmployees
+                          ? (v) {
+                              setState(() {
+                                e.active = v;
+                                _enqueueSync('UPDATE', 'employees', e.id);
+                              });
+                            }
+                          : null,
                     ),
                     IconButton(
-                      onPressed: () async {
-                        final edited = await _showEmployeeDialog(existing: e);
-                        if (edited == null) return;
-                        setState(() {
-                          final i = _employees.indexWhere((x) => x.id == e.id);
-                          _employees[i] = edited;
-                          _enqueueSync('UPDATE', 'employees', edited.id);
-                        });
-                      },
+                      onPressed: _canManageEmployees
+                          ? () async {
+                              final edited = await _showEmployeeDialog(
+                                existing: e,
+                              );
+                              if (edited == null) return;
+                              setState(() {
+                                final i = _employees.indexWhere(
+                                  (x) => x.id == e.id,
+                                );
+                                _employees[i] = edited;
+                                _enqueueSync('UPDATE', 'employees', edited.id);
+                              });
+                            }
+                          : null,
                       icon: const Icon(Icons.edit_outlined),
                     ),
                     IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _employees.removeWhere((x) => x.id == e.id);
-                          _enqueueSync('DELETE', 'employees', e.id);
-                        });
-                      },
+                      onPressed: _canManageEmployees
+                          ? () {
+                              setState(() {
+                                _employees.removeWhere((x) => x.id == e.id);
+                                _enqueueSync('DELETE', 'employees', e.id);
+                              });
+                            }
+                          : null,
                       icon: const Icon(Icons.delete_outline),
                     ),
                   ],
@@ -1708,30 +2772,548 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildUsersPage() {
+    final locationOptions = {
+      _storeLocation.trim(),
+      'Main Branch',
+      'Warehouse',
+      'Online',
+    }.where((v) => v.isNotEmpty).toList();
+
+    return _moduleCard(
+      title: 'User Management',
+      action: ElevatedButton.icon(
+        onPressed: _canManageEmployees
+            ? () async {
+                final created = await _showUserDialog();
+                if (created == null) return;
+                final authService = context.read<AuthService>();
+                final createdLogin = await authService.createStoreLogin(
+                  storeName: _companyName,
+                  tenantId: _activeTenantId ?? 'local',
+                  email: created.user.email,
+                  password: created.password,
+                  role: created.user.role.toLowerCase(),
+                  userName: created.user.name,
+                );
+                if (!createdLogin) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not create login (email already exists)')),
+                  );
+                  return;
+                }
+
+                setState(() => _users.add(created.user));
+                await _enqueueSync('INSERT', 'users', created.user.id);
+              }
+            : null,
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text('Add User'),
+      ),
+      child: SizedBox(
+        height: 520,
+        child: ListView.builder(
+          itemCount: _users.length,
+          itemBuilder: (context, index) {
+            final user = _users[index];
+            return Card(
+              child: ListTile(
+                title: Text('${user.name} (${user.role})'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(user.email),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Permissions: ${user.permissions.join(', ')}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    Text(
+                      'Locations: ${user.locations.join(', ')}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                isThreeLine: true,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Switch(
+                      value: user.active,
+                      onChanged: _canManageEmployees
+                          ? (v) async {
+                              setState(() => user.active = v);
+                              await _enqueueSync('UPDATE', 'users', user.id);
+                            }
+                          : null,
+                    ),
+                    IconButton(
+                      onPressed: _canManageEmployees
+                          ? () async {
+                              final edited = await _showUserDialog(
+                                existing: user,
+                              );
+                              if (edited == null) return;
+                              setState(() {
+                                final i = _users.indexWhere(
+                                  (x) => x.id == user.id,
+                                );
+                                _users[i] = edited.user;
+                              });
+
+                                if (edited.password.isNotEmpty) {
+                                  final authService = context.read<AuthService>();
+                                  await authService.createStoreLogin(
+                                    storeName: _companyName,
+                                    tenantId: _activeTenantId ?? 'local',
+                                    email: edited.user.email,
+                                    password: edited.password,
+                                    role: edited.user.role.toLowerCase(),
+                                    userName: edited.user.name,
+                                  );
+                                }
+
+                              await _enqueueSync(
+                                'UPDATE',
+                                'users',
+                                edited.user.id,
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      onPressed: _canManageEmployees
+                          ? () async {
+                              setState(
+                                () =>
+                                    _users.removeWhere((x) => x.id == user.id),
+                              );
+                              await _enqueueSync('DELETE', 'users', user.id);
+                            }
+                          : null,
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTabContent() {
+    switch (_settingsTab) {
+      case 'general':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              initialValue: _companyName,
+              decoration: const InputDecoration(
+                labelText: 'Company Name',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _companyName = v,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: _storeLocation,
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _storeLocation = v,
+            ),
+          ],
+        );
+      case 'hours':
+        return Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                initialValue: _openFrom,
+                decoration: const InputDecoration(
+                  labelText: 'Open From',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (v) => _openFrom = v,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                initialValue: _openTo,
+                decoration: const InputDecoration(
+                  labelText: 'Open To',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (v) => _openTo = v,
+              ),
+            ),
+          ],
+        );
+      case 'payments':
+        return Column(
+          children: [
+            CheckboxListTile(
+              title: const Text('Accept Cash'),
+              value: _acceptCash,
+              onChanged: (v) => setState(() => _acceptCash = v ?? true),
+            ),
+            CheckboxListTile(
+              title: const Text('Accept Card'),
+              value: _acceptCard,
+              onChanged: (v) => setState(() => _acceptCard = v ?? true),
+            ),
+            CheckboxListTile(
+              title: const Text('Accept Cheque'),
+              value: _acceptCheque,
+              onChanged: (v) => setState(() => _acceptCheque = v ?? false),
+            ),
+            CheckboxListTile(
+              title: const Text('Accept Installment'),
+              value: _acceptInstallment,
+              onChanged: (v) => setState(() => _acceptInstallment = v ?? false),
+            ),
+          ],
+        );
+      case 'tax':
+        return Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                initialValue: _taxRate,
+                decoration: const InputDecoration(
+                  labelText: 'Tax Rate (%)',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (v) => _taxRate = v,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _currency,
+                items: const [
+                  DropdownMenuItem(value: 'LKR', child: Text('LKR')),
+                  DropdownMenuItem(value: 'USD', child: Text('USD')),
+                  DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+                  DropdownMenuItem(value: 'INR', child: Text('INR')),
+                ],
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _currency = v);
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Currency',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+          ],
+        );
+      case 'receipt':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              initialValue: _receiptHeader,
+              decoration: const InputDecoration(
+                labelText: 'Receipt Header',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _receiptHeader = v,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              initialValue: _receiptFooter,
+              decoration: const InputDecoration(
+                labelText: 'Receipt Footer',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _receiptFooter = v,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              initialValue: _receiptNote,
+              decoration: const InputDecoration(
+                labelText: 'Receipt Note',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _receiptNote = v,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show Tax in Receipt'),
+              value: _receiptShowTax,
+              onChanged: (v) => setState(() => _receiptShowTax = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show Logo Placeholder in Receipt'),
+              value: _receiptShowLogo,
+              onChanged: (v) => setState(() => _receiptShowLogo = v),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _receiptPaper,
+                    decoration: const InputDecoration(
+                      labelText: 'Paper Size',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '58mm', child: Text('58mm Thermal')),
+                      DropdownMenuItem(value: '80mm', child: Text('80mm Thermal')),
+                      DropdownMenuItem(value: 'A4', child: Text('A4')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _receiptPaper = v);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _receiptMargin,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Margin',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => _receiptMargin = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              initialValue: _receiptFontScale,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Font Scale (e.g. 1.0)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _receiptFontScale = v,
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: _printDemoReceipt,
+              icon: const Icon(Icons.print),
+              label: const Text('Print Demo Bill'),
+            ),
+          ],
+        );
+      case 'integrations':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _integrationMode,
+              items: const [
+                DropdownMenuItem(
+                  value: 'Cloud Sync',
+                  child: Text('Cloud Sync'),
+                ),
+                DropdownMenuItem(
+                  value: 'Local Only',
+                  child: Text('Local Only'),
+                ),
+                DropdownMenuItem(value: 'Hybrid', child: Text('Hybrid')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _integrationMode = v);
+              },
+              decoration: const InputDecoration(
+                labelText: 'Mode',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: _integrationWebhook,
+              decoration: const InputDecoration(
+                labelText: 'Webhook URL (optional)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _integrationWebhook = v,
+            ),
+          ],
+        );
+      case 'notifications':
+        return Column(
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Low Stock Alerts'),
+              value: _notifyLowStock,
+              onChanged: (v) => setState(() => _notifyLowStock = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Daily Sales Summary'),
+              value: _notifyDailySummary,
+              onChanged: (v) => setState(() => _notifyDailySummary = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Return Notifications'),
+              value: _notifyReturns,
+              onChanged: (v) => setState(() => _notifyReturns = v),
+            ),
+          ],
+        );
+      case 'cash':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable Cash Drawer Integration'),
+              value: _cashDrawerEnabled,
+              onChanged: (v) => setState(() => _cashDrawerEnabled = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Require PIN for Open Drawer'),
+              value: _cashDrawerRequirePin,
+              onChanged: (v) => setState(() => _cashDrawerRequirePin = v),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              initialValue: _cashDrawerPin,
+              decoration: const InputDecoration(
+                labelText: 'Drawer PIN',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+              onChanged: (v) => _cashDrawerPin = v,
+            ),
+          ],
+        );
+      default:
+        return const Text(
+          'This settings section is ready for integration configuration.',
+        );
+    }
+  }
+
   Widget _buildReportsPage() {
     final totalRevenue = _sales.fold<double>(0, (sum, s) => sum + s.total);
     final completed = _sales.where((s) => s.status == 'COMPLETED').length;
     final cancelled = _sales.where((s) => s.status == 'CANCELLED').length;
     final returned = _sales.where((s) => s.status == 'RETURNED').length;
     final lowStock = _products.where((p) => p.stock <= p.minStock).length;
+    final inventoryValue = _products.fold<double>(
+      0,
+      (sum, p) => sum + (p.price * p.stock),
+    );
 
     return _moduleCard(
       title: 'Reports & Analytics',
       action: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: _exportReportsCsv,
         icon: const Icon(Icons.download),
         label: const Text('Export'),
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _statBox('Total Revenue', 'Rs ${totalRevenue.toStringAsFixed(2)}'),
-          _statBox('Completed Sales', '$completed'),
-          _statBox('Cancelled Sales', '$cancelled'),
-          _statBox('Returned Sales', '$returned'),
-          _statBox('Customers', '${_customers.length}'),
-          _statBox('Low Stock Products', '$lowStock'),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'sales', label: Text('Sales Reports')),
+              ButtonSegment(
+                value: 'inventory',
+                label: Text('Inventory Reports'),
+              ),
+              ButtonSegment(
+                value: 'customers',
+                label: Text('Customer Reports'),
+              ),
+            ],
+            selected: {_selectedReportType},
+            onSelectionChanged: (set) =>
+                setState(() => _selectedReportType = set.first),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _statBox('Total Revenue', _money(totalRevenue)),
+              _statBox('Completed Sales', '$completed'),
+              _statBox('Cancelled Sales', '$cancelled'),
+              _statBox('Returned Sales', '$returned'),
+              _statBox('Customers', '${_customers.length}'),
+              _statBox('Low Stock Products', '$lowStock'),
+              _statBox('Inventory Value', _money(inventoryValue)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 320,
+            child: _selectedReportType == 'sales'
+                ? ListView.builder(
+                    itemCount: _sales.length,
+                    itemBuilder: (context, index) {
+                      final sale = _sales[index];
+                      return ListTile(
+                        title: Text('${sale.id} • ${_money(sale.total)}'),
+                        subtitle: Text(
+                          '${sale.status} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}',
+                        ),
+                      );
+                    },
+                  )
+                : _selectedReportType == 'inventory'
+                ? ListView.builder(
+                    itemCount: _products.length,
+                    itemBuilder: (context, index) {
+                      final p = _products[index];
+                      return ListTile(
+                        title: Text('${p.name} (${p.id})'),
+                        subtitle: Text(
+                          'Stock ${p.stock} • Min ${p.minStock} • Value ${_money(p.price * p.stock)}',
+                        ),
+                        trailing: p.stock <= p.minStock
+                            ? const Chip(
+                                label: Text('LOW'),
+                                backgroundColor: Color(0xFFFFE5E5),
+                              )
+                            : null,
+                      );
+                    },
+                  )
+                : ListView.builder(
+                    itemCount: _customers.length,
+                    itemBuilder: (context, index) {
+                      final c = _customers[index];
+                      final customerSales = _sales
+                          .where((s) => s.customerName == c.name)
+                          .toList();
+                      final spend = customerSales.fold<double>(
+                        0,
+                        (sum, s) => sum + s.total,
+                      );
+                      return ListTile(
+                        title: Text(c.name),
+                        subtitle: Text(
+                          '${c.phone} • Orders: ${customerSales.length} • '
+                          'Points: ${c.loyaltyPoints} • Credit: ${_money(c.currentBalance)}',
+                        ),
+                        trailing: Text(_money(spend)),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );
@@ -1741,160 +3323,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _moduleCard(
       title: 'Settings',
       action: ElevatedButton.icon(
-        onPressed: () async {
-          _enqueueSync('UPDATE', 'settings', 'company_settings');
-          await _persistWorkspaceData();
-          if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Settings saved')));
-        },
+        onPressed: _canManageSettings
+            ? () async {
+                _enqueueSync('UPDATE', 'settings', 'company_settings');
+                await _persistWorkspaceData();
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Settings saved')));
+              }
+            : null,
         icon: const Icon(Icons.save),
-        label: const Text('Save'),
+        label: const Text('Save Settings'),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'System Settings',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            'Manage your configuration, hours, payments and receipt.',
+            style: TextStyle(color: Color(0xFF6D7383)),
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _companyName,
-            decoration: const InputDecoration(
-              labelText: 'Company Name',
-              border: OutlineInputBorder(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _settingsTabs
+                  .map(
+                    (tab) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(tab.icon, size: 16),
+                            const SizedBox(width: 6),
+                            Text(tab.label),
+                          ],
+                        ),
+                        selected: _settingsTab == tab.key,
+                        onSelected: (_) =>
+                            setState(() => _settingsTab = tab.key),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
-            onChanged: (v) => _companyName = v,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _taxRate,
-            decoration: const InputDecoration(
-              labelText: 'Tax Rate (%)',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _taxRate = v,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _currency,
-            decoration: const InputDecoration(
-              labelText: 'Currency',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _currency = v,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _storeLocation,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _storeLocation = v,
-          ),
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 12),
-          const Text(
-            'Receipt Editor',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _receiptHeader,
-            decoration: const InputDecoration(
-              labelText: 'Receipt Header',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _receiptHeader = v,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _receiptFooter,
-            decoration: const InputDecoration(
-              labelText: 'Receipt Footer',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _receiptFooter = v,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: _receiptNote,
-            decoration: const InputDecoration(
-              labelText: 'Receipt Note',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (v) => _receiptNote = v,
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Show Tax in Receipt'),
-            value: _receiptShowTax,
-            onChanged: (v) => setState(() => _receiptShowTax = v),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Show Logo Placeholder in Receipt'),
-            value: _receiptShowLogo,
-            onChanged: (v) => setState(() => _receiptShowLogo = v),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: _printDemoReceipt,
-                icon: const Icon(Icons.print),
-                label: const Text('Print Demo Bill'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => setState(() {}),
-                icon: const Icon(Icons.preview),
-                label: const Text('Refresh Preview'),
-              ),
-            ],
           ),
           const SizedBox(height: 14),
           Container(
-            width: 360,
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFDDE0EA)),
               color: Colors.white,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _receiptHeader,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                if (_receiptShowLogo)
-                  const Text(
-                    '[Logo]',
-                    style: TextStyle(color: Color(0xFF6D7383)),
-                  ),
-                const Text('Demo Item A x1   Rs 1200.00'),
-                const Text('Demo Item B x1   Rs 800.00'),
-                const Divider(),
-                const Text('Subtotal: Rs 2000.00'),
-                Text(
-                  'Tax: ${_receiptShowTax ? 'Enabled ($_taxRate%)' : 'Disabled'}',
-                ),
-                Text(
-                  _receiptNote,
-                  style: const TextStyle(color: Color(0xFF6D7383)),
-                ),
-                const SizedBox(height: 4),
-                Text(_receiptFooter),
-              ],
-            ),
+            child: _buildSettingsTabContent(),
           ),
         ],
       ),
@@ -2085,9 +3569,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final inv = _invoices[index];
                   return Card(
                     child: ListTile(
-                      title: Text(
-                        '${inv.id} • Rs ${inv.amount.toStringAsFixed(2)}',
-                      ),
+                      title: Text('${inv.id} • ${_money(inv.amount)}'),
                       subtitle: Text('Sale ${inv.saleId}'),
                       trailing: DropdownButton<String>(
                         value: inv.status,
@@ -2118,22 +3600,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _moduleCard(
       title: 'Sync Manager',
       action: ElevatedButton.icon(
-        onPressed: () {
-          setState(() {
-            _lastSyncAt = DateTime.now();
-            _syncQueue.clear();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Manual sync completed')),
-          );
-        },
+        onPressed: _canRunSync && !_syncInProgress ? _runManualSync : null,
         icon: const Icon(Icons.sync),
-        label: const Text('Run Manual Sync'),
+        label: Text(_syncInProgress ? 'Syncing...' : 'Run Manual Sync'),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Last sync: ${_lastSyncAt?.toLocal().toString() ?? 'Never'}'),
+          if (_lastSyncError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _lastSyncError!,
+              style: const TextStyle(
+                color: Color(0xFFE35D5D),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Text('Pending operations: ${_syncQueue.length}'),
           const SizedBox(height: 10),
@@ -2183,7 +3667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const Spacer(),
-                  ?action,
+                  action ?? const SizedBox.shrink(),
                 ],
               ),
               const SizedBox(height: 14),
@@ -2224,9 +3708,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           existing?.id ?? 'P${DateTime.now().millisecondsSinceEpoch % 100000}',
     );
     final nameController = TextEditingController(text: existing?.name ?? '');
-    final categoryController = TextEditingController(
-      text: existing?.category ?? 'General',
-    );
     final priceController = TextEditingController(
       text: existing?.price.toString() ?? '0',
     );
@@ -2239,61 +3720,126 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return showDialog<_ProductItem>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null ? 'Add Product' : 'Edit Product'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: idController,
-                decoration: const InputDecoration(labelText: 'ID'),
+      builder: (context) {
+        final categories = _productCategories.isEmpty
+            ? ['General']
+            : List<String>.from(_productCategories);
+        String selectedCategory = existing?.category.isNotEmpty == true
+            ? existing!.category
+            : categories.first;
+        final newCategoryController = TextEditingController();
+
+        if (!categories.any((c) => c.toLowerCase() == selectedCategory.toLowerCase())) {
+          categories.add(selectedCategory);
+        }
+
+        return StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: Text(existing == null ? 'Add Product' : 'Edit Product'),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'ID'),
+                  ),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          key: ValueKey(selectedCategory),
+                          initialValue: selectedCategory,
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: categories
+                              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setLocal(() => selectedCategory = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: newCategoryController,
+                          decoration: const InputDecoration(
+                            labelText: 'Add New Category',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          final value = newCategoryController.text.trim();
+                          if (value.isEmpty) return;
+                          if (categories.any((c) => c.toLowerCase() == value.toLowerCase())) return;
+                          setLocal(() {
+                            categories.add(value);
+                            selectedCategory = value;
+                          });
+                          newCategoryController.clear();
+                        },
+                        child: const Text('Add'),
+                      ),
+                    ],
+                  ),
+                  TextField(
+                    controller: priceController,
+                    decoration: const InputDecoration(labelText: 'Price'),
+                  ),
+                  TextField(
+                    controller: stockController,
+                    decoration: const InputDecoration(labelText: 'Stock'),
+                  ),
+                  TextField(
+                    controller: minStockController,
+                    decoration: const InputDecoration(labelText: 'Min Stock'),
+                  ),
+                ],
               ),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              TextField(
-                controller: categoryController,
-                decoration: const InputDecoration(labelText: 'Category'),
-              ),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(labelText: 'Price'),
-              ),
-              TextField(
-                controller: stockController,
-                decoration: const InputDecoration(labelText: 'Stock'),
-              ),
-              TextField(
-                controller: minStockController,
-                decoration: const InputDecoration(labelText: 'Min Stock'),
+              ElevatedButton(
+                onPressed: () {
+                  final item = _ProductItem(
+                    id: idController.text.trim(),
+                    name: nameController.text.trim(),
+                    category: selectedCategory,
+                    price: double.tryParse(priceController.text.trim()) ?? 0,
+                    stock: int.tryParse(stockController.text.trim()) ?? 0,
+                    minStock: int.tryParse(minStockController.text.trim()) ?? 0,
+                  );
+                  if (!_productCategories.any((c) => c.toLowerCase() == selectedCategory.toLowerCase())) {
+                    _productCategories.add(selectedCategory);
+                  }
+                  Navigator.pop(context, item);
+                },
+                child: const Text('Save'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final item = _ProductItem(
-                id: idController.text.trim(),
-                name: nameController.text.trim(),
-                category: categoryController.text.trim(),
-                price: double.tryParse(priceController.text.trim()) ?? 0,
-                stock: int.tryParse(stockController.text.trim()) ?? 0,
-                minStock: int.tryParse(minStockController.text.trim()) ?? 0,
-              );
-              Navigator.pop(context, item);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2305,6 +3851,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final nameController = TextEditingController(text: existing?.name ?? '');
     final phoneController = TextEditingController(text: existing?.phone ?? '');
     final emailController = TextEditingController(text: existing?.email ?? '');
+    final creditLimitController = TextEditingController(
+      text: (existing?.creditLimit ?? 0).toString(),
+    );
+    final currentBalanceController = TextEditingController(
+      text: (existing?.currentBalance ?? 0).toString(),
+    );
+    final loyaltyPointsController = TextEditingController(
+      text: (existing?.loyaltyPoints ?? 0).toString(),
+    );
 
     return showDialog<_CustomerItem>(
       context: context,
@@ -2331,6 +3886,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 controller: emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
               ),
+              TextField(
+                controller: creditLimitController,
+                decoration: const InputDecoration(labelText: 'Credit Limit'),
+              ),
+              TextField(
+                controller: currentBalanceController,
+                decoration: const InputDecoration(labelText: 'Current Balance'),
+              ),
+              TextField(
+                controller: loyaltyPointsController,
+                decoration: const InputDecoration(labelText: 'Loyalty Points'),
+              ),
             ],
           ),
         ),
@@ -2348,6 +3915,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   name: nameController.text.trim(),
                   phone: phoneController.text.trim(),
                   email: emailController.text.trim(),
+                  creditLimit:
+                      double.tryParse(creditLimitController.text.trim()) ?? 0,
+                  currentBalance:
+                      double.tryParse(currentBalanceController.text.trim()) ??
+                      0,
+                  loyaltyPoints:
+                      int.tryParse(loyaltyPointsController.text.trim()) ?? 0,
                 ),
               );
             },
@@ -2425,6 +3999,176 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     name: nameController.text.trim(),
                     role: role,
                     active: active,
+                  ),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<_UserDialogResult?> _showUserDialog({_UserItem? existing}) async {
+    final idController = TextEditingController(
+      text:
+          existing?.id ?? 'U${DateTime.now().millisecondsSinceEpoch % 100000}',
+    );
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final emailController = TextEditingController(text: existing?.email ?? '');
+    final passwordController = TextEditingController();
+    String role = existing?.role ?? 'CASHIER';
+    bool active = existing?.active ?? true;
+    final permissionOptions = ['POS', 'Products', 'Sales', 'Customers', 'Reports', 'Settings'];
+    final locationOptions = {
+      _storeLocation.trim(),
+      'Main Branch',
+      'Warehouse',
+      'Online',
+    }.where((v) => v.isNotEmpty).toList();
+    final selectedPermissions = <String>{
+      ...(existing?.permissions ?? ['POS', 'Sales', 'Customers']),
+    };
+    final selectedLocations = <String>{
+      ...(existing?.locations ?? [locationOptions.first]),
+    };
+
+    return showDialog<_UserDialogResult>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(existing == null ? 'Add User' : 'Edit User'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: idController,
+                  decoration: const InputDecoration(labelText: 'ID'),
+                ),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                TextField(
+                  controller: passwordController,
+                  decoration: InputDecoration(
+                    labelText: existing == null
+                        ? 'Password (for login)'
+                        : 'Password (leave empty to keep current login)',
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  key: ValueKey<String>(role),
+                  initialValue: role,
+                  items: const [
+                    DropdownMenuItem(value: 'OWNER', child: Text('OWNER')),
+                    DropdownMenuItem(value: 'MANAGER', child: Text('MANAGER')),
+                    DropdownMenuItem(value: 'CASHIER', child: Text('CASHIER')),
+                  ],
+                  onChanged: (v) => setLocal(() => role = v ?? role),
+                  decoration: const InputDecoration(labelText: 'Role'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  value: active,
+                  onChanged: (v) => setLocal(() => active = v),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Permissions',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: permissionOptions
+                      .map(
+                        (perm) => FilterChip(
+                          label: Text(perm),
+                          selected: selectedPermissions.contains(perm),
+                          onSelected: (selected) {
+                            setLocal(() {
+                              if (selected) {
+                                selectedPermissions.add(perm);
+                              } else {
+                                selectedPermissions.remove(perm);
+                              }
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Locations',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: locationOptions
+                      .map(
+                        (loc) => FilterChip(
+                          label: Text(loc),
+                          selected: selectedLocations.contains(loc),
+                          onSelected: (selected) {
+                            setLocal(() {
+                              if (selected) {
+                                selectedLocations.add(loc);
+                              } else {
+                                selectedLocations.remove(loc);
+                              }
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (existing == null && passwordController.text.trim().isEmpty) {
+                  return;
+                }
+                Navigator.pop(
+                  context,
+                  _UserDialogResult(
+                    user: _UserItem(
+                      id: idController.text.trim(),
+                      name: nameController.text.trim(),
+                      email: emailController.text.trim(),
+                      role: role,
+                      active: active,
+                      permissions: selectedPermissions.toList(),
+                      locations: selectedLocations.toList(),
+                    ),
+                    password: passwordController.text.trim(),
                   ),
                 );
               },
@@ -2789,16 +4533,30 @@ class _CustomerItem {
   String name;
   String phone;
   String email;
+  double creditLimit;
+  double currentBalance;
+  int loyaltyPoints;
 
   _CustomerItem({
     required this.id,
     required this.name,
     required this.phone,
     required this.email,
+    this.creditLimit = 0,
+    this.currentBalance = 0,
+    this.loyaltyPoints = 0,
   });
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'phone': phone, 'email': email};
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'email': email,
+      'creditLimit': creditLimit,
+      'currentBalance': currentBalance,
+      'loyaltyPoints': loyaltyPoints,
+    };
   }
 
   factory _CustomerItem.fromJson(Map<String, dynamic> json) {
@@ -2807,6 +4565,9 @@ class _CustomerItem {
       name: (json['name'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
+      creditLimit: (json['creditLimit'] as num?)?.toDouble() ?? 0,
+      currentBalance: (json['currentBalance'] as num?)?.toDouble() ?? 0,
+      loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -2836,6 +4597,73 @@ class _EmployeeItem {
       active: json['active'] as bool? ?? true,
     );
   }
+}
+
+class _UserItem {
+  final String id;
+  String name;
+  String email;
+  String role;
+  bool active;
+  List<String> permissions;
+  List<String> locations;
+
+  _UserItem({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.active,
+    this.permissions = const [],
+    this.locations = const [],
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'role': role,
+      'active': active,
+      'permissions': permissions,
+      'locations': locations,
+    };
+  }
+
+  factory _UserItem.fromJson(Map<String, dynamic> json) {
+    return _UserItem(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      role: (json['role'] ?? 'CASHIER').toString(),
+      active: json['active'] as bool? ?? true,
+      permissions: (json['permissions'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      locations: (json['locations'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
+}
+
+class _UserDialogResult {
+  final _UserItem user;
+  final String password;
+
+  _UserDialogResult({required this.user, required this.password});
+}
+
+class _SettingsTabItem {
+  final String key;
+  final String label;
+  final IconData icon;
+
+  const _SettingsTabItem({
+    required this.key,
+    required this.label,
+    required this.icon,
+  });
 }
 
 class _SupplierItem {
@@ -2941,6 +4769,7 @@ class _SaleRecord {
   final double tax;
   final double total;
   String status;
+  String? returnReason;
   final DateTime createdAt;
 
   _SaleRecord({
@@ -2951,6 +4780,7 @@ class _SaleRecord {
     required this.tax,
     required this.total,
     required this.status,
+    this.returnReason,
     required this.createdAt,
   });
 
@@ -2963,6 +4793,7 @@ class _SaleRecord {
       'tax': tax,
       'total': total,
       'status': status,
+      'returnReason': returnReason,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -2979,6 +4810,48 @@ class _SaleRecord {
       tax: (json['tax'] as num?)?.toDouble() ?? 0,
       total: (json['total'] as num?)?.toDouble() ?? 0,
       status: (json['status'] ?? 'COMPLETED').toString(),
+      returnReason: json['returnReason']?.toString(),
+      createdAt:
+          DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
+    );
+  }
+}
+
+class _HeldCart {
+  final String id;
+  final String? customerId;
+  final String? paymentMethod;
+  final Map<String, int> items;
+  final DateTime createdAt;
+
+  _HeldCart({
+    required this.id,
+    required this.customerId,
+    required this.paymentMethod,
+    required this.items,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'customerId': customerId,
+      'paymentMethod': paymentMethod,
+      'items': items,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory _HeldCart.fromJson(Map<String, dynamic> json) {
+    final rawItems = Map<String, dynamic>.from(json['items'] ?? {});
+    return _HeldCart(
+      id: (json['id'] ?? '').toString(),
+      customerId: json['customerId']?.toString(),
+      paymentMethod: json['paymentMethod']?.toString(),
+      items: rawItems.map(
+        (key, value) => MapEntry(key, (value as num).toInt()),
+      ),
       createdAt:
           DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
           DateTime.now(),

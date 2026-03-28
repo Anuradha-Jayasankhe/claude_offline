@@ -60,6 +60,8 @@ class AuthService {
     final account = matched.first;
     final tenantId = account['tenantId'] ?? '';
     final storeName = account['storeName'] ?? 'Store';
+    final userName = account['userName'] ?? storeName;
+    final role = (account['role'] ?? 'manager').toString();
     final trialEndsAtRaw = account['trialEndsAt'];
 
     if (tenantId.isEmpty) {
@@ -76,9 +78,9 @@ class AuthService {
     final user = User(
       id: 'store-user-$tenantId',
       tenantId: tenantId,
-      name: storeName,
+      name: userName,
       email: email,
-      role: 'manager',
+      role: role,
       isActive: true,
     );
 
@@ -91,6 +93,8 @@ class AuthService {
     required String tenantId,
     required String email,
     required String password,
+    String role = 'manager',
+    String? userName,
     DateTime? trialStartsAt,
     DateTime? trialEndsAt,
   }) async {
@@ -108,6 +112,8 @@ class AuthService {
       'tenantId': tenantId,
       'email': email,
       'password': password,
+      'role': role,
+      'userName': userName ?? storeName,
       'trialStartsAt': trialStartsAt?.toIso8601String(),
       'trialEndsAt': trialEndsAt?.toIso8601String(),
       'createdAt': DateTime.now().toIso8601String(),
