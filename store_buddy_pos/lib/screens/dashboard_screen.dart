@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pdf/pdf.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,17 +27,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const String _workspaceStateKey = 'workspace_state_v1';
-
-  final _storeNameController = TextEditingController();
-  final _tenantIdController = TextEditingController();
-  final _storeEmailController = TextEditingController();
-  final _storePasswordController = TextEditingController();
-
-  final _productSearchController = TextEditingController();
-  final _customerSearchController = TextEditingController();
-  final _paymentMethodController = ValueNotifier<String>('CASH');
-
   final List<_NavItem> _storeNavItems = const [
     _NavItem(
       key: 'dashboard',
@@ -92,6 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       price: 1200,
       stock: 30,
       minStock: 8,
+      barcode: 'P001',
     ),
     _ProductItem(
       id: 'P002',
@@ -100,6 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       price: 350,
       stock: 55,
       minStock: 12,
+      barcode: 'P002',
     ),
     _ProductItem(
       id: 'P003',
@@ -108,6 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       price: 700,
       stock: 18,
       minStock: 10,
+      barcode: 'P003',
     ),
   ];
   List<String> _productCategories = ['Food', 'Beverage', 'General'];
@@ -139,6 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_InvoiceItem> _invoices = [];
   final List<_PurchaseOrderItem> _purchaseOrders = [];
   final List<_SyncItem> _syncQueue = [];
+  final Map<String, List<_CreditPaymentItem>> _customerCreditPayments = {};
 
   final Map<String, int> _cart = {};
   String? _selectedCustomerId;
@@ -171,6 +164,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _receiptFontScale = '1.0';
   String _selectedReportType = 'sales';
   String _settingsTab = 'general';
+  String _salesFilterStatus = 'ALL';
+  String _salesFilterPayment = 'ALL';
   DateTime? _lastSyncAt;
   String? _lastSyncError;
 
@@ -185,41 +180,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _syncInProgress = false;
   bool _syncQueueLoaded = false;
 
+  final TextEditingController _salesSearchController = TextEditingController();
+  final TextEditingController _customerSearchController =
+      TextEditingController();
+  final TextEditingController _productSearchController =
+      TextEditingController();
+  final TextEditingController _paymentMethodController =
+      TextEditingController();
+  final TextEditingController _storeNameController = TextEditingController();
+  final TextEditingController _tenantIdController = TextEditingController();
+  final TextEditingController _storeEmailController = TextEditingController();
+  final TextEditingController _storePasswordController =
+      TextEditingController();
+
+  static const String _workspaceStateKey = 'workspace_state';
+
   @override
   void initState() {
     super.initState();
-    _loadStoreLogins();
-    _selectedCustomerId = _customers.first.id;
     _loadPersistedWorkspaceData();
+    _loadStoreLogins();
   }
 
   @override
   void dispose() {
+    _salesSearchController.dispose();
+    _customerSearchController.dispose();
+    _productSearchController.dispose();
+    _paymentMethodController.dispose();
     _storeNameController.dispose();
     _tenantIdController.dispose();
     _storeEmailController.dispose();
     _storePasswordController.dispose();
-    _productSearchController.dispose();
-    _customerSearchController.dispose();
-    _paymentMethodController.dispose();
-    _syncService?.dispose();
     super.dispose();
   }
 
-  Future<void> _enqueueSync(String action, String module, String ref) async {
-    if (_syncService == null) return;
+  Future<void> _enqueueSync(
+    String action,
+    String module,
+    String reference,
+  ) async {
+    await _addToSyncQueue(action: action, module: module, reference: reference);
+  }
 
-    await _syncService!.queueOperation(action, module, ref, {
-      'id': ref,
-      'module': module,
-      'action': action,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
+  Future<void> _addToSyncQueue({
+    required String action,
+    required String module,
+    required String reference,
+  }) async {
+    _syncQueue.add(
+      _SyncItem(
+        timestamp: DateTime.now(),
+        action: action,
+        module: module,
+        reference: reference,
+      ),
+    );
 
     await _refreshPendingSyncQueue();
     await _persistWorkspaceData();
 
-    await _triggerRealtimeSync(action: action, module: module, reference: ref);
+    await _triggerRealtimeSync(
+      action: action,
+      module: module,
+      reference: reference,
+    );
   }
 
   Future<void> _refreshPendingSyncQueue() async {
@@ -306,7 +331,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       tenantId: tenantId,
       name: item.name,
       sku: null,
-      barcode: null,
+      barcode: item.barcode.isEmpty ? null : item.barcode,
       price: item.price,
       costPrice: null,
       category: item.category,
@@ -329,6 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       price: p.price,
       stock: p.stock.toInt(),
       minStock: p.minStock.toInt(),
+      barcode: p.barcode ?? p.id,
     );
   }
 
@@ -599,13 +625,199 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _exportSalesCsv(List<_SaleRecord> sales) async {
+    final buffer = StringBuffer();
+    buffer.writeln(
+      'sale_id,customer,payment,status,subtotal,tax,total,created_at,return_reason',
+    );
+    for (final sale in sales) {
+      buffer.writeln(
+        '${sale.id},${sale.customerName},${sale.paymentMethod},${sale.status},'
+        '${sale.subtotal.toStringAsFixed(2)},${sale.tax.toStringAsFixed(2)},${sale.total.toStringAsFixed(2)},'
+        '${sale.createdAt.toIso8601String()},${sale.returnReason ?? ''}',
+      );
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Sales CSV copied (${sales.length} rows)')),
+    );
+  }
+
+  String _generateBarcodeValue() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return 'SB${now.toString().substring(now.toString().length - 10)}';
+  }
+
+  Future<void> _printProductBarcode(_ProductItem product) async {
+    final doc = pw.Document();
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(220, 120),
+        build: (context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  product.name,
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text('Barcode: ${product.barcode}'),
+                pw.SizedBox(height: 6),
+                pw.Text('SKU: ${product.id}'),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (_) => doc.save());
+  }
+
+  Future<void> _recordCustomerCreditPayment(_CustomerItem customer) async {
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Record Credit Payment • ${customer.name}'),
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Outstanding Balance: ${_money(customer.currentBalance)}'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Payment Amount',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Note (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text.trim());
+              if (amount == null || amount <= 0) return;
+              Navigator.pop(context, amount);
+            },
+            child: const Text('Record Payment'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result <= 0) return;
+    final paymentAmount = result > customer.currentBalance
+        ? customer.currentBalance
+        : result;
+    if (paymentAmount <= 0) return;
+
+    final payment = _CreditPaymentItem(
+      id: 'CP${DateTime.now().millisecondsSinceEpoch}',
+      amount: paymentAmount,
+      note: noteController.text.trim(),
+      createdAt: DateTime.now(),
+    );
+
+    setState(() {
+      customer.currentBalance = (customer.currentBalance - paymentAmount)
+          .clamp(0, double.infinity)
+          .toDouble();
+      _customerCreditPayments
+          .putIfAbsent(customer.id, () => [])
+          .insert(0, payment);
+    });
+    await _persistWorkspaceData();
+
+    if (_customerRepository != null) {
+      await _customerRepository!.updateCustomer(_toDomainCustomer(customer));
+      await _refreshPendingSyncQueue();
+      await _triggerRealtimeSync(
+        action: 'UPDATE',
+        module: 'customers',
+        reference: customer.id,
+      );
+    } else {
+      await _enqueueSync('UPDATE', 'customers', customer.id);
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment recorded: ${_money(paymentAmount)}')),
+    );
+  }
+
+  Future<void> _showCustomerCreditHistory(_CustomerItem customer) async {
+    final items = _customerCreditPayments[customer.id] ?? const [];
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Credit Payments • ${customer.name}'),
+        content: SizedBox(
+          width: 460,
+          height: 300,
+          child: items.isEmpty
+              ? const Center(child: Text('No credit payments recorded yet.'))
+              : ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return ListTile(
+                      title: Text(_money(item.amount)),
+                      subtitle: Text(
+                        '${item.createdAt.toLocal()}${item.note.isEmpty ? '' : ' • ${item.note}'}',
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _holdCurrentCart() async {
     if (_cart.isEmpty) return;
 
     final held = _HeldCart(
       id: 'HC${DateTime.now().millisecondsSinceEpoch}',
       customerId: _selectedCustomerId,
-      paymentMethod: _paymentMethodController.value,
+      paymentMethod: _paymentMethodController.text,
       items: Map<String, int>.from(_cart),
       createdAt: DateTime.now(),
     );
@@ -669,7 +881,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _selectedCustomerId = selected.customerId;
       if (selected.paymentMethod != null &&
           selected.paymentMethod!.isNotEmpty) {
-        _paymentMethodController.value = selected.paymentMethod!;
+        _paymentMethodController.text = selected.paymentMethod!;
       }
       _heldCarts.removeWhere((x) => x.id == selected.id);
     });
@@ -735,7 +947,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onPressed: () {
                           final value = inputController.text.trim();
                           if (value.isEmpty) return;
-                          if (items.any((x) => x.toLowerCase() == value.toLowerCase())) return;
+                          if (items.any(
+                            (x) => x.toLowerCase() == value.toLowerCase(),
+                          ))
+                            return;
                           setLocal(() => items.add(value));
                           inputController.clear();
                         },
@@ -755,12 +970,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           trailing: IconButton(
                             onPressed: () {
                               final inUse = _products.any(
-                                (p) => p.category.toLowerCase() == category.toLowerCase(),
+                                (p) =>
+                                    p.category.toLowerCase() ==
+                                    category.toLowerCase(),
                               );
                               if (inUse) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Category is used by products and cannot be removed'),
+                                    content: Text(
+                                      'Category is used by products and cannot be removed',
+                                    ),
                                   ),
                                 );
                                 return;
@@ -858,7 +1077,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Total: ${_money(sale.total)}',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              if (sale.returnReason != null && sale.returnReason!.isNotEmpty) ...[
+              if (sale.returnReason != null &&
+                  sale.returnReason!.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text('Return Reason: ${sale.returnReason}'),
               ],
@@ -891,6 +1111,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'invoices': _invoices.map((e) => e.toJson()).toList(),
       'purchaseOrders': _purchaseOrders.map((e) => e.toJson()).toList(),
       'syncQueue': _syncQueue.map((e) => e.toJson()).toList(),
+      'customerCreditPayments': _customerCreditPayments.map(
+        (key, value) =>
+            MapEntry(key, value.map((item) => item.toJson()).toList()),
+      ),
       'settings': {
         'companyName': _companyName,
         'taxRate': _taxRate,
@@ -936,10 +1160,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final productList = (decoded['products'] as List<dynamic>? ?? [])
           .map((e) => _ProductItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-        final categoryList = (decoded['productCategories'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .where((e) => e.trim().isNotEmpty)
-          .toList();
+      final categoryList =
+          (decoded['productCategories'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList();
       final customerList = (decoded['customers'] as List<dynamic>? ?? [])
           .map((e) => _CustomerItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
@@ -973,6 +1198,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final syncList = (decoded['syncQueue'] as List<dynamic>? ?? [])
           .map((e) => _SyncItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+      final creditPaymentsMap =
+          (decoded['customerCreditPayments'] as Map<String, dynamic>? ?? {})
+              .map(
+                (key, value) => MapEntry(
+                  key,
+                  (value as List<dynamic>)
+                      .map(
+                        (e) => _CreditPaymentItem.fromJson(
+                          Map<String, dynamic>.from(e),
+                        ),
+                      )
+                      .toList(),
+                ),
+              );
 
       final settings = Map<String, dynamic>.from(decoded['settings'] ?? {});
 
@@ -982,7 +1221,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ..clear()
           ..addAll(productList);
         _productCategories = categoryList.isEmpty
-            ? (_products.map((p) => p.category).toSet().toList()..add('General'))
+            ? (_products.map((p) => p.category).toSet().toList()
+                ..add('General'))
             : categoryList.toSet().toList();
         _customers
           ..clear()
@@ -1051,6 +1291,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _syncQueue
           ..clear()
           ..addAll(syncList);
+        _customerCreditPayments
+          ..clear()
+          ..addAll(creditPaymentsMap);
 
         _companyName = settings['companyName'] ?? _companyName;
         _taxRate = settings['taxRate'] ?? _taxRate;
@@ -1100,10 +1343,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required _SaleRecord sale,
     required List<_CartLine> lines,
   }) async {
-    final marginValue =
-        (double.tryParse(_receiptMargin) ?? 8).clamp(2, 30).toDouble();
-    final fontScale =
-        (double.tryParse(_receiptFontScale) ?? 1.0).clamp(0.7, 1.8).toDouble();
+    final marginValue = (double.tryParse(_receiptMargin) ?? 8)
+        .clamp(2, 30)
+        .toDouble();
+    final fontScale = (double.tryParse(_receiptFontScale) ?? 1.0)
+        .clamp(0.7, 1.8)
+        .toDouble();
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
@@ -1121,16 +1366,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               pw.SizedBox(height: 4),
-              pw.Text('Invoice: ${sale.id}', style: pw.TextStyle(fontSize: 11 * fontScale)),
-              pw.Text('Date: ${sale.createdAt.toLocal()}', style: pw.TextStyle(fontSize: 11 * fontScale)),
-              pw.Text('Customer: ${sale.customerName}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+              pw.Text(
+                'Invoice: ${sale.id}',
+                style: pw.TextStyle(fontSize: 11 * fontScale),
+              ),
+              pw.Text(
+                'Date: ${sale.createdAt.toLocal()}',
+                style: pw.TextStyle(fontSize: 11 * fontScale),
+              ),
+              pw.Text(
+                'Customer: ${sale.customerName}',
+                style: pw.TextStyle(fontSize: 11 * fontScale),
+              ),
               pw.SizedBox(height: 12),
               ...lines.map(
                 (line) => pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Expanded(
-                      child: pw.Text('${line.product.name} x${line.qty}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+                      child: pw.Text(
+                        '${line.product.name} x${line.qty}',
+                        style: pw.TextStyle(fontSize: 11 * fontScale),
+                      ),
                     ),
                     pw.Text(
                       '$_currency ${(line.product.price * line.qty).toStringAsFixed(2)}',
@@ -1143,15 +1400,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Subtotal', style: pw.TextStyle(fontSize: 11 * fontScale)),
-                  pw.Text('$_currency ${sale.subtotal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+                  pw.Text(
+                    'Subtotal',
+                    style: pw.TextStyle(fontSize: 11 * fontScale),
+                  ),
+                  pw.Text(
+                    '$_currency ${sale.subtotal.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 11 * fontScale),
+                  ),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('Tax', style: pw.TextStyle(fontSize: 11 * fontScale)),
-                  pw.Text('$_currency ${sale.tax.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 11 * fontScale)),
+                  pw.Text(
+                    '$_currency ${sale.tax.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 11 * fontScale),
+                  ),
                 ],
               ),
               pw.Row(
@@ -1159,18 +1425,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   pw.Text(
                     'Total',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12 * fontScale),
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 12 * fontScale,
+                    ),
                   ),
                   pw.Text(
                     '$_currency ${sale.total.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12 * fontScale),
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 12 * fontScale,
+                    ),
                   ),
                 ],
               ),
               pw.SizedBox(height: 12),
-              pw.Text(_receiptNote, style: pw.TextStyle(fontSize: 11 * fontScale)),
+              pw.Text(
+                _receiptNote,
+                style: pw.TextStyle(fontSize: 11 * fontScale),
+              ),
               pw.SizedBox(height: 8),
-              pw.Text(_receiptFooter, style: pw.TextStyle(fontSize: 11 * fontScale)),
+              pw.Text(
+                _receiptFooter,
+                style: pw.TextStyle(fontSize: 11 * fontScale),
+              ),
             ],
           );
         },
@@ -1977,39 +2255,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    ValueListenableBuilder<String>(
-                      valueListenable: _paymentMethodController,
-                      builder: (context, value, child) {
-                        return DropdownButtonFormField<String>(
-                          key: ValueKey<String>(value),
-                          initialValue: value,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'CASH',
-                              child: Text('CASH'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'CARD',
-                              child: Text('CARD'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'CHEQUE',
-                              child: Text('CHEQUE'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'INSTALLMENT',
-                              child: Text('INSTALLMENT'),
-                            ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) _paymentMethodController.value = v;
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Payment Method',
-                            border: OutlineInputBorder(),
-                          ),
-                        );
+                    DropdownButtonFormField<String>(
+                      initialValue: _paymentMethodController.text.isEmpty
+                          ? null
+                          : _paymentMethodController.text,
+                      items: const [
+                        DropdownMenuItem(value: 'CASH', child: Text('CASH')),
+                        DropdownMenuItem(value: 'CARD', child: Text('CARD')),
+                        DropdownMenuItem(
+                          value: 'CHEQUE',
+                          child: Text('CHEQUE'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'INSTALLMENT',
+                          child: Text('INSTALLMENT'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) _paymentMethodController.text = v;
                       },
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Method',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Expanded(
@@ -2104,7 +2372,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         orElse: () => _customers.first,
                                       )
                                       .name,
-                                  paymentMethod: _paymentMethodController.value,
+                                  paymentMethod: _paymentMethodController.text,
                                   subtotal: subtotal,
                                   tax: taxAmount,
                                   total: grandTotal,
@@ -2119,7 +2387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       );
                                   selectedCustomer.loyaltyPoints +=
                                       _loyaltyPointsForAmount(grandTotal);
-                                  if (_paymentMethodController.value ==
+                                  if (_paymentMethodController.text ==
                                       'INSTALLMENT') {
                                     selectedCustomer.currentBalance +=
                                         grandTotal;
@@ -2178,7 +2446,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (q.isEmpty) return true;
       return p.name.toLowerCase().contains(q) ||
           p.category.toLowerCase().contains(q) ||
-          p.id.toLowerCase().contains(q);
+          p.id.toLowerCase().contains(q) ||
+          p.barcode.toLowerCase().contains(q);
     }).toList();
 
     return _moduleCard(
@@ -2199,7 +2468,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (item == null) return;
                     setState(() {
                       _products.add(item);
-                      if (!_productCategories.any((c) => c.toLowerCase() == item.category.toLowerCase())) {
+                      if (!_productCategories.any(
+                        (c) => c.toLowerCase() == item.category.toLowerCase(),
+                      )) {
                         _productCategories.add(item.category);
                       }
                     });
@@ -2247,15 +2518,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return ListTile(
                   title: Text('${p.name} (${p.id})'),
                   subtitle: Text(
-                    '${p.category} • Stock ${p.stock} • Min ${p.minStock}',
+                    '${p.category} • Barcode ${p.barcode} • Stock ${p.stock} • Min ${p.minStock}',
                   ),
                   trailing: Wrap(
                     spacing: 4,
                     children: [
                       IconButton(
+                        onPressed: () => _printProductBarcode(p),
+                        icon: const Icon(Icons.qr_code_2_outlined),
+                        tooltip: 'Print Barcode Label',
+                      ),
+                      IconButton(
                         onPressed: _canManageCatalog
                             ? () async {
-                                final nextStock = await _showAdjustStockDialog(p);
+                                final nextStock = await _showAdjustStockDialog(
+                                  p,
+                                );
                                 if (nextStock == null) return;
                                 setState(() {
                                   p.stock = nextStock;
@@ -2273,7 +2551,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     reference: p.id,
                                   );
                                 } else {
-                                  await _enqueueSync('UPDATE', 'products', p.id);
+                                  await _enqueueSync(
+                                    'UPDATE',
+                                    'products',
+                                    p.id,
+                                  );
                                 }
                               }
                             : null,
@@ -2291,7 +2573,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     (x) => x.id == p.id,
                                   );
                                   _products[i] = edited;
-                                  if (!_productCategories.any((c) => c.toLowerCase() == edited.category.toLowerCase())) {
+                                  if (!_productCategories.any(
+                                    (c) =>
+                                        c.toLowerCase() ==
+                                        edited.category.toLowerCase(),
+                                  )) {
                                     _productCategories.add(edited.category);
                                   }
                                 });
@@ -2357,92 +2643,175 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSalesPage() {
+    final query = _salesSearchController.text.trim().toLowerCase();
+    final filtered = _sales.where((s) {
+      if (query.isNotEmpty) {
+        if (!s.id.toLowerCase().contains(query) &&
+            !s.customerName.toLowerCase().contains(query) &&
+            !s.paymentMethod.toLowerCase().contains(query)) {
+          return false;
+        }
+      }
+      if (_salesFilterStatus != 'ALL' && s.status != _salesFilterStatus) {
+        return false;
+      }
+      if (_salesFilterPayment != 'ALL' &&
+          s.paymentMethod != _salesFilterPayment) {
+        return false;
+      }
+      return true;
+    }).toList();
+
     return _moduleCard(
       title: 'Sales Processing',
-      action: OutlinedButton.icon(
-        onPressed: () => setState(() {}),
-        icon: const Icon(Icons.refresh),
-        label: const Text('Refresh'),
+      action: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => _exportSalesCsv(filtered),
+            icon: const Icon(Icons.download),
+            label: const Text('Export CSV'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => setState(() {}),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh'),
+          ),
+        ],
       ),
-      child: SizedBox(
-        height: 520,
-        child: _sales.isEmpty
-            ? const Center(
-                child: Text(
-                  'No sales yet. Complete a POS checkout to generate sales.',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _salesSearchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: 'Search sales by ID/customer/payment',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              )
-            : ListView.builder(
-                itemCount: _sales.length,
-                itemBuilder: (context, index) {
-                  final sale = _sales[index];
-                  return Card(
-                    child: ListTile(
-                      onTap: () => _showSaleDetails(sale),
-                      title: Text('${sale.id} • ${_money(sale.total)}'),
-                      subtitle: Text(
-                        '${sale.customerName} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}${sale.returnReason != null ? ' • Reason: ${sale.returnReason}' : ''}',
-                      ),
-                      trailing: DropdownButton<String>(
-                        value: sale.status,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'COMPLETED',
-                            child: Text('COMPLETED'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'RETURNED',
-                            child: Text('RETURNED'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'CANCELLED',
-                            child: Text('CANCELLED'),
-                          ),
-                        ],
-                        onChanged: _canChangeSalesStatus
-                            ? (v) async {
-                                if (v == null) return;
-                                if (sale.status == v) return;
-
-                                String? reason;
-                                if (v == 'RETURNED') {
-                                  reason = await _showReturnReasonDialog();
-                                  if (reason == null || reason.isEmpty) return;
-                                }
-
-                                setState(() {
-                                  sale.status = v;
-                                  sale.returnReason = v == 'RETURNED'
-                                      ? reason
-                                      : null;
-                                });
-                                await _persistWorkspaceData();
-
-                                if (_saleRepository != null) {
-                                  await _saleRepository!.updateSaleStatus(
-                                    saleId: sale.id,
-                                    status: sale.status,
-                                  );
-                                  await _refreshPendingSyncQueue();
-                                  await _triggerRealtimeSync(
-                                    action: 'UPDATE',
-                                    module: 'sales',
-                                    reference: sale.id,
-                                  );
-                                } else {
-                                  await _enqueueSync(
-                                    'UPDATE',
-                                    'sales',
-                                    sale.id,
-                                  );
-                                }
-                              }
-                            : null,
-                      ),
-                    ),
-                  );
-                },
               ),
+              const SizedBox(width: 12),
+              DropdownButton<String>(
+                value: _salesFilterStatus,
+                items: const [
+                  DropdownMenuItem(value: 'ALL', child: Text('All Status')),
+                  DropdownMenuItem(
+                    value: 'COMPLETED',
+                    child: Text('Completed'),
+                  ),
+                  DropdownMenuItem(value: 'RETURNED', child: Text('Returned')),
+                  DropdownMenuItem(
+                    value: 'CANCELLED',
+                    child: Text('Cancelled'),
+                  ),
+                ],
+                onChanged: (v) =>
+                    setState(() => _salesFilterStatus = v ?? 'ALL'),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String>(
+                value: _salesFilterPayment,
+                items: const [
+                  DropdownMenuItem(value: 'ALL', child: Text('All Payments')),
+                  DropdownMenuItem(value: 'CASH', child: Text('Cash')),
+                  DropdownMenuItem(value: 'CARD', child: Text('Card')),
+                  DropdownMenuItem(value: 'CHEQUE', child: Text('Cheque')),
+                  DropdownMenuItem(
+                    value: 'INSTALLMENT',
+                    child: Text('Installment'),
+                  ),
+                ],
+                onChanged: (v) =>
+                    setState(() => _salesFilterPayment = v ?? 'ALL'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 400,
+            child: filtered.isEmpty
+                ? const Center(
+                    child: Text('No sales match the current filters.'),
+                  )
+                : ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final sale = filtered[index];
+                      return Card(
+                        child: ListTile(
+                          onTap: () => _showSaleDetails(sale),
+                          title: Text('${sale.id} • ${_money(sale.total)}'),
+                          subtitle: Text(
+                            '${sale.customerName} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}${sale.returnReason != null ? ' • Reason: ${sale.returnReason}' : ''}',
+                          ),
+                          trailing: DropdownButton<String>(
+                            value: sale.status,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'COMPLETED',
+                                child: Text('COMPLETED'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'RETURNED',
+                                child: Text('RETURNED'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'CANCELLED',
+                                child: Text('CANCELLED'),
+                              ),
+                            ],
+                            onChanged: _canChangeSalesStatus
+                                ? (v) async {
+                                    if (v == null) return;
+                                    if (sale.status == v) return;
+
+                                    String? reason;
+                                    if (v == 'RETURNED') {
+                                      reason = await _showReturnReasonDialog();
+                                      if (reason == null || reason.isEmpty)
+                                        return;
+                                    }
+
+                                    setState(() {
+                                      sale.status = v;
+                                      sale.returnReason = v == 'RETURNED'
+                                          ? reason
+                                          : null;
+                                    });
+                                    await _persistWorkspaceData();
+
+                                    if (_saleRepository != null) {
+                                      await _saleRepository!.updateSaleStatus(
+                                        saleId: sale.id,
+                                        status: sale.status,
+                                      );
+                                      await _refreshPendingSyncQueue();
+                                      await _triggerRealtimeSync(
+                                        action: 'UPDATE',
+                                        module: 'sales',
+                                        reference: sale.id,
+                                      );
+                                    } else {
+                                      await _enqueueSync(
+                                        'UPDATE',
+                                        'sales',
+                                        sale.id,
+                                      );
+                                    }
+                                  }
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -2528,6 +2897,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       (x) => x.id == c.id,
                                     );
                                     _customers[i] = edited;
+                                    if (edited.id != c.id) {
+                                      final history = _customerCreditPayments
+                                          .remove(c.id);
+                                      if (history != null) {
+                                        _customerCreditPayments[edited.id] =
+                                            history;
+                                      }
+                                    }
                                   });
                                   await _persistWorkspaceData();
 
@@ -2557,6 +2934,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? () async {
                                   setState(() {
                                     _customers.removeWhere((x) => x.id == c.id);
+                                    _customerCreditPayments.remove(c.id);
                                   });
                                   await _persistWorkspaceData();
 
@@ -2580,6 +2958,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 }
                               : null,
                           icon: const Icon(Icons.delete_outline),
+                        ),
+                        IconButton(
+                          onPressed: () => _recordCustomerCreditPayment(c),
+                          icon: const Icon(Icons.payments_outlined),
+                          tooltip: 'Record Credit Payment',
+                        ),
+                        IconButton(
+                          onPressed: () => _showCustomerCreditHistory(c),
+                          icon: const Icon(Icons.history),
+                          tooltip: 'Credit History',
                         ),
                       ],
                     ),
@@ -2799,7 +3187,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (!createdLogin) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not create login (email already exists)')),
+                    const SnackBar(
+                      content: Text(
+                        'Could not create login (email already exists)',
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -2863,17 +3255,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 _users[i] = edited.user;
                               });
 
-                                if (edited.password.isNotEmpty) {
-                                  final authService = context.read<AuthService>();
-                                  await authService.createStoreLogin(
-                                    storeName: _companyName,
-                                    tenantId: _activeTenantId ?? 'local',
-                                    email: edited.user.email,
-                                    password: edited.password,
-                                    role: edited.user.role.toLowerCase(),
-                                    userName: edited.user.name,
-                                  );
-                                }
+                              if (edited.password.isNotEmpty) {
+                                final authService = context.read<AuthService>();
+                                await authService.createStoreLogin(
+                                  storeName: _companyName,
+                                  tenantId: _activeTenantId ?? 'local',
+                                  email: edited.user.email,
+                                  password: edited.password,
+                                  role: edited.user.role.toLowerCase(),
+                                  userName: edited.user.name,
+                                );
+                              }
 
                               await _enqueueSync(
                                 'UPDATE',
@@ -3069,8 +3461,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '58mm', child: Text('58mm Thermal')),
-                      DropdownMenuItem(value: '80mm', child: Text('80mm Thermal')),
+                      DropdownMenuItem(
+                        value: '58mm',
+                        child: Text('58mm Thermal'),
+                      ),
+                      DropdownMenuItem(
+                        value: '80mm',
+                        child: Text('80mm Thermal'),
+                      ),
                       DropdownMenuItem(value: 'A4', child: Text('A4')),
                     ],
                     onChanged: (v) {
@@ -3096,7 +3494,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 10),
             TextFormField(
               initialValue: _receiptFontScale,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Font Scale (e.g. 1.0)',
                 border: OutlineInputBorder(),
@@ -3708,6 +4108,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           existing?.id ?? 'P${DateTime.now().millisecondsSinceEpoch % 100000}',
     );
     final nameController = TextEditingController(text: existing?.name ?? '');
+    final barcodeController = TextEditingController(
+      text: existing?.barcode ?? _generateBarcodeValue(),
+    );
     final priceController = TextEditingController(
       text: existing?.price.toString() ?? '0',
     );
@@ -3729,7 +4132,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : categories.first;
         final newCategoryController = TextEditingController();
 
-        if (!categories.any((c) => c.toLowerCase() == selectedCategory.toLowerCase())) {
+        if (!categories.any(
+          (c) => c.toLowerCase() == selectedCategory.toLowerCase(),
+        )) {
           categories.add(selectedCategory);
         }
 
@@ -3753,6 +4158,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     children: [
                       Expanded(
+                        child: TextField(
+                          controller: barcodeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Barcode',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          barcodeController.text = _generateBarcodeValue();
+                        },
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('Generate'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
                         child: DropdownButtonFormField<String>(
                           key: ValueKey(selectedCategory),
                           initialValue: selectedCategory,
@@ -3761,7 +4188,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             border: OutlineInputBorder(),
                           ),
                           items: categories
-                              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                              .map(
+                                (c) =>
+                                    DropdownMenuItem(value: c, child: Text(c)),
+                              )
                               .toList(),
                           onChanged: (v) {
                             if (v == null) return;
@@ -3788,7 +4218,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onPressed: () {
                           final value = newCategoryController.text.trim();
                           if (value.isEmpty) return;
-                          if (categories.any((c) => c.toLowerCase() == value.toLowerCase())) return;
+                          if (categories.any(
+                            (c) => c.toLowerCase() == value.toLowerCase(),
+                          ))
+                            return;
                           setLocal(() {
                             categories.add(value);
                             selectedCategory = value;
@@ -3825,11 +4258,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     id: idController.text.trim(),
                     name: nameController.text.trim(),
                     category: selectedCategory,
+                    barcode: barcodeController.text.trim(),
                     price: double.tryParse(priceController.text.trim()) ?? 0,
                     stock: int.tryParse(stockController.text.trim()) ?? 0,
                     minStock: int.tryParse(minStockController.text.trim()) ?? 0,
                   );
-                  if (!_productCategories.any((c) => c.toLowerCase() == selectedCategory.toLowerCase())) {
+                  if (!_productCategories.any(
+                    (c) => c.toLowerCase() == selectedCategory.toLowerCase(),
+                  )) {
                     _productCategories.add(selectedCategory);
                   }
                   Navigator.pop(context, item);
@@ -4020,7 +4456,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final passwordController = TextEditingController();
     String role = existing?.role ?? 'CASHIER';
     bool active = existing?.active ?? true;
-    final permissionOptions = ['POS', 'Products', 'Sales', 'Customers', 'Reports', 'Settings'];
+    final permissionOptions = [
+      'POS',
+      'Products',
+      'Sales',
+      'Customers',
+      'Reports',
+      'Settings',
+    ];
     final locationOptions = {
       _storeLocation.trim(),
       'Main Branch',
@@ -4153,7 +4596,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (existing == null && passwordController.text.trim().isEmpty) {
+                if (existing == null &&
+                    passwordController.text.trim().isEmpty) {
                   return;
                 }
                 Navigator.pop(
@@ -4492,6 +4936,7 @@ class _ProductItem {
   final String id;
   String name;
   String category;
+  String barcode;
   double price;
   int stock;
   int minStock;
@@ -4500,6 +4945,7 @@ class _ProductItem {
     required this.id,
     required this.name,
     required this.category,
+    this.barcode = '',
     required this.price,
     required this.stock,
     required this.minStock,
@@ -4510,6 +4956,7 @@ class _ProductItem {
       'id': id,
       'name': name,
       'category': category,
+      'barcode': barcode,
       'price': price,
       'stock': stock,
       'minStock': minStock,
@@ -4521,9 +4968,44 @@ class _ProductItem {
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       category: (json['category'] ?? '').toString(),
+      barcode: (json['barcode'] ?? json['id'] ?? '').toString(),
       price: (json['price'] as num?)?.toDouble() ?? 0,
       stock: (json['stock'] as num?)?.toInt() ?? 0,
       minStock: (json['minStock'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class _CreditPaymentItem {
+  final String id;
+  final double amount;
+  final String note;
+  final DateTime createdAt;
+
+  _CreditPaymentItem({
+    required this.id,
+    required this.amount,
+    required this.note,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'amount': amount,
+      'note': note,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory _CreditPaymentItem.fromJson(Map<String, dynamic> json) {
+    return _CreditPaymentItem(
+      id: (json['id'] ?? '').toString(),
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      note: (json['note'] ?? '').toString(),
+      createdAt:
+          DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
     );
   }
 }
