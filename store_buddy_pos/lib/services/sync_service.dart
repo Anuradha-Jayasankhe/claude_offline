@@ -221,6 +221,6 @@ class SyncService {
   }
 
   void dispose() {
-    _database.close();
+    db.AppDatabase.closeDatabase(tenantId);
   }
 }

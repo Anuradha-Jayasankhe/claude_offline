@@ -3,14 +3,19 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  static const String baseUrl =
-      'http://localhost:3000/api'; // Change to your server URL
+  static const String _defaultBaseUrl = 'http://localhost:3000/api';
+  static const String configuredBaseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: _defaultBaseUrl,
+  );
+
+  final String baseUrl;
   late final Dio _dio;
 
-  ApiClient() {
+  ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? configuredBaseUrl {
     _dio = Dio(
       BaseOptions(
-        baseUrl: baseUrl,
+        baseUrl: this.baseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
         headers: {'Content-Type': 'application/json'},
@@ -58,6 +63,19 @@ class ApiClient {
 }
 
 class AuthInterceptor extends Interceptor {
+  bool _isExpiredJwt(String token) {
+    if (token.startsWith('platform-session-token') ||
+        token.startsWith('store-session-token-')) {
+      return false;
+    }
+
+    try {
+      return JwtDecoder.isExpired(token);
+    } catch (_) {
+      return true;
+    }
+  }
+
   @override
   void onRequest(
     RequestOptions options,
@@ -66,7 +84,7 @@ class AuthInterceptor extends Interceptor {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
-    if (token != null && !JwtDecoder.isExpired(token)) {
+    if (token != null && !_isExpiredJwt(token)) {
       options.headers['Authorization'] = 'Bearer $token';
     }
 
@@ -82,7 +100,7 @@ class AuthInterceptor extends Interceptor {
 
       if (refreshToken != null) {
         try {
-          final dio = Dio(BaseOptions(baseUrl: ApiClient.baseUrl));
+          final dio = Dio(BaseOptions(baseUrl: err.requestOptions.baseUrl));
           final response = await dio.post(
             '/auth/refresh',
             data: {'refreshToken': refreshToken},

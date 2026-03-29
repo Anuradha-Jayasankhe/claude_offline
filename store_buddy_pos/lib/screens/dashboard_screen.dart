@@ -44,6 +44,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icons.inventory_2_rounded,
     ),
     _NavItem(
+      key: 'barcodes',
+      label: 'Barcode Printing',
+      icon: Icons.qr_code_2_rounded,
+    ),
+    _NavItem(
       key: 'categories',
       label: 'Categories',
       icon: Icons.category_outlined,
@@ -225,6 +230,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _dashboardPeriod = 'This Month';
   String _posCategoryFilter = 'All Categories';
   String _purchaseOrderStatusFilter = 'All Statuses';
+  String _barcodePaperFormat = 'A4';
+  double _barcodeLabelWidthMm = 50;
+  double _barcodeLabelHeightMm = 26;
+  final double _barcodeHorizontalGapMm = 3;
+  final double _barcodeVerticalGapMm = 3;
+  double _barcodeFontScale = 1.0;
+  bool _barcodeShowName = true;
+  bool _barcodeShowPrice = true;
+  bool _barcodeShowSku = true;
+  bool _barcodeShowCodeText = true;
+  bool _barcodeShowCategory = false;
+  final Set<String> _selectedBarcodeProductIds = <String>{};
+  final Map<String, int> _barcodeQuantityByProduct = <String, int>{};
   DateTime? _lastSyncAt;
   String? _lastSyncError;
 
@@ -271,6 +289,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       TextEditingController();
   final TextEditingController _warrantySearchController =
       TextEditingController();
+  final TextEditingController _barcodeSearchController =
+      TextEditingController();
   String _jobCardStatusFilter = 'ALL';
   String _jobCardPriorityFilter = 'ALL';
   String _warrantyTabKey = 'warranties';
@@ -291,6 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    _disposeTenantScopedResources();
     _salesSearchController.dispose();
     _customerSearchController.dispose();
     _attendanceSearchController.dispose();
@@ -311,6 +332,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _purchaseOrderSearchController.dispose();
     _serviceSearchController.dispose();
     _warrantySearchController.dispose();
+    _barcodeSearchController.dispose();
     super.dispose();
   }
 
@@ -374,6 +396,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_syncService != null) return;
     final apiClient = context.read<ApiClient>();
     _syncService = SyncService(apiClient, tenantId);
+  }
+
+  void _disposeTenantScopedResources() {
+    _syncService?.dispose();
+    _syncService = null;
+
+    final tenantId = _activeTenantId;
+    if (tenantId != null) {
+      db.AppDatabase.closeDatabase(tenantId);
+    }
+
+    _appDatabase = null;
+    _productRepository = null;
+    _customerRepository = null;
+    _saleRepository = null;
+    _activeTenantId = null;
+    _coreDataLoaded = false;
+    _syncQueueLoaded = false;
+    _syncQueue.clear();
+  }
+
+  void _ensureTenantScope(String tenantId) {
+    if (_activeTenantId == null || _activeTenantId == tenantId) {
+      return;
+    }
+
+    _disposeTenantScopedResources();
   }
 
   void _ensureRepositories(String tenantId) {
@@ -670,6 +719,181 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _money(double amount) => '$_currency ${amount.toStringAsFixed(2)}';
 
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  DateTime _startOfWeek(DateTime value) {
+    final dateOnly = DateTime(value.year, value.month, value.day);
+    return dateOnly.subtract(Duration(days: dateOnly.weekday - 1));
+  }
+
+  bool _matchesTimeFilter(DateTime value, String filter) {
+    final now = DateTime.now();
+    switch (filter) {
+      case 'Today':
+        return _isSameDay(value, now);
+      case 'This Week':
+        final weekStart = _startOfWeek(now);
+        final weekEnd = weekStart.add(const Duration(days: 7));
+        return !value.isBefore(weekStart) && value.isBefore(weekEnd);
+      case 'This Month':
+        return value.year == now.year && value.month == now.month;
+      case 'This Year':
+        return value.year == now.year;
+      case 'All Time':
+      default:
+        return true;
+    }
+  }
+
+  List<_SaleRecord> _salesForPeriod(String period, List<_SaleRecord> source) {
+    return source
+        .where((sale) => _matchesTimeFilter(sale.createdAt, period))
+        .toList();
+  }
+
+  double _periodRevenue(String period) {
+    final periodSales = _salesForPeriod(period, _sales);
+    return periodSales.fold<double>(0, (sum, sale) => sum + sale.total);
+  }
+
+  PdfPageFormat _barcodePageFormat() {
+    switch (_barcodePaperFormat) {
+      case '58mm':
+        return PdfPageFormat(58 * PdfPageFormat.mm, 240 * PdfPageFormat.mm);
+      case '80mm':
+        return PdfPageFormat(80 * PdfPageFormat.mm, 300 * PdfPageFormat.mm);
+      case 'A4':
+      default:
+        return PdfPageFormat.a4;
+    }
+  }
+
+  int _barcodeQuantityForProduct(String productId) {
+    return _barcodeQuantityByProduct[productId] ?? 1;
+  }
+
+  void _setBarcodeQuantityForProduct(String productId, int quantity) {
+    final safeQuantity = quantity.clamp(1, 999);
+    setState(() {
+      _barcodeQuantityByProduct[productId] = safeQuantity;
+    });
+  }
+
+  pw.Widget _buildBarcodeLabel(_ProductItem product) {
+    final width = _barcodeLabelWidthMm * PdfPageFormat.mm;
+    final height = _barcodeLabelHeightMm * PdfPageFormat.mm;
+    final barcodeValue = product.barcode.trim().isEmpty
+        ? product.id
+        : product.barcode.trim();
+
+    final textWidgets = <pw.Widget>[];
+    if (_barcodeShowName) {
+      textWidgets.add(
+        pw.Text(
+          product.name,
+          maxLines: 2,
+          style: pw.TextStyle(
+            fontSize: 8.5 * _barcodeFontScale,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      );
+      textWidgets.add(pw.SizedBox(height: 2));
+    }
+
+    textWidgets.add(
+      pw.Expanded(
+        child: pw.Center(
+          child: pw.BarcodeWidget(
+            barcode: pw.Barcode.code128(),
+            data: barcodeValue,
+            drawText: false,
+          ),
+        ),
+      ),
+    );
+
+    if (_barcodeShowCodeText) {
+      textWidgets.add(pw.SizedBox(height: 2));
+      textWidgets.add(
+        pw.Text(
+          barcodeValue,
+          style: pw.TextStyle(fontSize: 7.5 * _barcodeFontScale),
+        ),
+      );
+    }
+
+    if (_barcodeShowSku) {
+      textWidgets.add(
+        pw.Text(
+          'SKU: ${product.id}',
+          style: pw.TextStyle(fontSize: 7.0 * _barcodeFontScale),
+        ),
+      );
+    }
+
+    if (_barcodeShowCategory) {
+      textWidgets.add(
+        pw.Text(
+          product.category,
+          style: pw.TextStyle(fontSize: 7.0 * _barcodeFontScale),
+        ),
+      );
+    }
+
+    if (_barcodeShowPrice) {
+      textWidgets.add(
+        pw.Text(
+          _money(product.price),
+          style: pw.TextStyle(
+            fontSize: 7.5 * _barcodeFontScale,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    return pw.Container(
+      width: width,
+      height: height,
+      padding: const pw.EdgeInsets.all(4),
+      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.6)),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: textWidgets,
+      ),
+    );
+  }
+
+  Future<void> _printBarcodeLabels(List<_ProductItem> labels) async {
+    if (labels.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products selected for barcode print')),
+      );
+      return;
+    }
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: _barcodePageFormat(),
+        margin: const pw.EdgeInsets.all(10),
+        build: (_) => [
+          pw.Wrap(
+            spacing: _barcodeHorizontalGapMm * PdfPageFormat.mm,
+            runSpacing: _barcodeVerticalGapMm * PdfPageFormat.mm,
+            children: labels.map(_buildBarcodeLabel).toList(),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+  }
+
   int _loyaltyPointsForAmount(double amount) => (amount ~/ 100).toInt();
 
   final List<_SettingsTabItem> _settingsTabs = const [
@@ -746,35 +970,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _printProductBarcode(_ProductItem product) async {
-    final doc = pw.Document();
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(220, 120),
-        build: (context) {
-          return pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  product.name,
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text('Barcode: ${product.barcode}'),
-                pw.SizedBox(height: 6),
-                pw.Text('SKU: ${product.id}'),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+    await _printBarcodeLabels([product]);
+  }
 
-    await Printing.layoutPdf(onLayout: (_) => doc.save());
+  Future<void> _printSelectedProductBarcodes() async {
+    final labels = <_ProductItem>[];
+    for (final product in _products) {
+      if (!_selectedBarcodeProductIds.contains(product.id)) {
+        continue;
+      }
+
+      final quantity = _barcodeQuantityForProduct(product.id);
+      for (var i = 0; i < quantity; i++) {
+        labels.add(product);
+      }
+    }
+
+    await _printBarcodeLabels(labels);
   }
 
   Future<void> _recordCustomerCreditPayment(_CustomerItem customer) async {
@@ -883,7 +1095,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ? const Center(child: Text('No credit payments recorded yet.'))
               : ListView.separated(
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     return ListTile(
@@ -2094,6 +2306,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStoreShell(AuthAuthenticated state) {
+    _ensureTenantScope(state.user.tenantId);
     _currentUserRole = state.user.role;
     final visibleNavItems = _visibleNavItems();
     if (!visibleNavItems.any((item) => item.key == _selectedNavKey)) {
@@ -2236,8 +2449,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: () =>
-                    context.read<AuthBloc>().add(AuthLogoutRequested()),
+                onTap: () {
+                  _disposeTenantScopedResources();
+                  context.read<AuthBloc>().add(AuthLogoutRequested());
+                },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -2391,6 +2606,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildPosPage();
       case 'products':
         return _buildProductsPage();
+      case 'barcodes':
+        return _buildBarcodePrintingPage();
       case 'categories':
         return _buildCategoriesPage();
       case 'sales':
@@ -2431,19 +2648,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _dashboardPage() {
-    final totalRevenue = _sales.fold<double>(0, (sum, s) => sum + s.total);
-    final avgOrder = _sales.isEmpty ? 0.0 : totalRevenue / _sales.length;
+    final periodSales = _salesForPeriod(_dashboardPeriod, _sales);
+    final totalRevenue = periodSales.fold<double>(0, (sum, s) => sum + s.total);
+    final avgOrder = periodSales.isEmpty
+        ? 0.0
+        : totalRevenue / periodSales.length;
     final lowStock = _products.where((p) => p.stock <= p.minStock).length;
     final activeEmployees = _employees.where((e) => e.active).length;
     final inventoryValue = _products.fold<double>(
       0,
       (sum, p) => sum + (p.price * p.stock),
     );
-    final productRevenue = _sales.fold<double>(
+    final productRevenue = periodSales.fold<double>(
       0,
       (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? 0 : s.total),
     );
-    final serviceRevenue = _sales.fold<double>(
+    final serviceRevenue = periodSales.fold<double>(
       0,
       (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? s.total : 0),
     );
@@ -2461,7 +2681,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .entries
             .toList()
           ..sort((a, b) => b.value.compareTo(a.value));
-    final topSeller = _sales.isEmpty ? null : _sales.first;
+    final topSeller = periodSales.isEmpty
+        ? null
+        : (periodSales.toList()..sort((a, b) => b.total.compareTo(a.total)))
+              .first;
+    final todayRevenue = _periodRevenue('Today');
+    final monthRevenue = _periodRevenue('This Month');
+    final yearRevenue = _periodRevenue('This Year');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
@@ -2489,17 +2715,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: DropdownButton<String>(
                     value: _dashboardPeriod,
                     items: const [
-                      DropdownMenuItem(
-                        value: 'This Week',
-                        child: Text('This Week'),
-                      ),
+                      DropdownMenuItem(value: 'Today', child: Text('Today')),
                       DropdownMenuItem(
                         value: 'This Month',
                         child: Text('This Month'),
                       ),
                       DropdownMenuItem(
-                        value: 'This Quarter',
-                        child: Text('This Quarter'),
+                        value: 'This Year',
+                        child: Text('This Year'),
                       ),
                     ],
                     onChanged: (v) {
@@ -2525,7 +2748,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 title: 'Total Revenue',
                 value: _money(totalRevenue),
                 icon: Icons.payments_rounded,
-                subtitle: 'All time sales',
+                subtitle: '$_dashboardPeriod sales',
                 deltaText: '+0.0%',
                 deltaHint: 'vs last period',
                 deltaColor: const Color(0xFF1FA35B),
@@ -2649,9 +2872,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _overviewRow('Today', _money(totalRevenue)),
-                        _overviewRow('This Week', _money(totalRevenue)),
-                        _overviewRow('This Month', _money(totalRevenue)),
+                        _overviewRow('Today', _money(todayRevenue)),
+                        _overviewRow('This Month', _money(monthRevenue)),
+                        _overviewRow('This Year', _money(yearRevenue)),
                         const Divider(height: 22),
                         _overviewRow('Avg Transaction', _money(avgOrder)),
                       ],
@@ -3853,9 +4076,362 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildBarcodePrintingPage() {
+    final query = _barcodeSearchController.text.trim().toLowerCase();
+    final visibleProducts = _products.where((product) {
+      if (query.isEmpty) return true;
+      return product.name.toLowerCase().contains(query) ||
+          product.id.toLowerCase().contains(query) ||
+          product.barcode.toLowerCase().contains(query) ||
+          product.category.toLowerCase().contains(query);
+    }).toList();
+
+    final selectedVisibleCount = visibleProducts
+        .where((product) => _selectedBarcodeProductIds.contains(product.id))
+        .length;
+    final allVisibleSelected =
+        visibleProducts.isNotEmpty &&
+        selectedVisibleCount == visibleProducts.length;
+    final selectedProductsCount = _selectedBarcodeProductIds.length;
+    final totalLabelsCount = _selectedBarcodeProductIds.fold<int>(
+      0,
+      (sum, productId) => sum + _barcodeQuantityForProduct(productId),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Barcode Printing',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Select products, set labels per product, adjust label size, and print in batch.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: selectedProductsCount == 0
+                    ? null
+                    : _printSelectedProductBarcodes,
+                icon: const Icon(Icons.print_outlined),
+                label: Text(
+                  'Print $totalLabelsCount Labels ($selectedProductsCount Products)',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _barcodePaperFormat,
+                          decoration: const InputDecoration(
+                            labelText: 'Paper',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'A4', child: Text('A4')),
+                            DropdownMenuItem(
+                              value: '80mm',
+                              child: Text('80mm'),
+                            ),
+                            DropdownMenuItem(
+                              value: '58mm',
+                              child: Text('58mm'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _barcodePaperFormat = value);
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Width: ${_barcodeLabelWidthMm.toStringAsFixed(0)} mm',
+                            ),
+                            Slider(
+                              min: 30,
+                              max: 90,
+                              divisions: 60,
+                              value: _barcodeLabelWidthMm,
+                              onChanged: (value) =>
+                                  setState(() => _barcodeLabelWidthMm = value),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Height: ${_barcodeLabelHeightMm.toStringAsFixed(0)} mm',
+                            ),
+                            Slider(
+                              min: 20,
+                              max: 60,
+                              divisions: 40,
+                              value: _barcodeLabelHeightMm,
+                              onChanged: (value) =>
+                                  setState(() => _barcodeLabelHeightMm = value),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Text Scale: ${_barcodeFontScale.toStringAsFixed(2)}x',
+                            ),
+                            Slider(
+                              min: 0.7,
+                              max: 1.6,
+                              divisions: 18,
+                              value: _barcodeFontScale,
+                              onChanged: (value) =>
+                                  setState(() => _barcodeFontScale = value),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text('Show Name'),
+                        selected: _barcodeShowName,
+                        onSelected: (value) =>
+                            setState(() => _barcodeShowName = value),
+                      ),
+                      FilterChip(
+                        label: const Text('Show Price'),
+                        selected: _barcodeShowPrice,
+                        onSelected: (value) =>
+                            setState(() => _barcodeShowPrice = value),
+                      ),
+                      FilterChip(
+                        label: const Text('Show SKU'),
+                        selected: _barcodeShowSku,
+                        onSelected: (value) =>
+                            setState(() => _barcodeShowSku = value),
+                      ),
+                      FilterChip(
+                        label: const Text('Show Barcode Text'),
+                        selected: _barcodeShowCodeText,
+                        onSelected: (value) =>
+                            setState(() => _barcodeShowCodeText = value),
+                      ),
+                      FilterChip(
+                        label: const Text('Show Category'),
+                        selected: _barcodeShowCategory,
+                        onSelected: (value) =>
+                            setState(() => _barcodeShowCategory = value),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              SizedBox(
+                width: 360,
+                child: TextField(
+                  controller: _barcodeSearchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: 'Search by product, barcode, SKU or category...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Checkbox(
+                value: allVisibleSelected,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    for (final product in visibleProducts) {
+                      if (value) {
+                        _selectedBarcodeProductIds.add(product.id);
+                        _barcodeQuantityByProduct.putIfAbsent(
+                          product.id,
+                          () => 1,
+                        );
+                      } else {
+                        _selectedBarcodeProductIds.remove(product.id);
+                      }
+                    }
+                  });
+                },
+              ),
+              Text('Select all visible (${visibleProducts.length})'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Card(
+              child: visibleProducts.isEmpty
+                  ? const Center(child: Text('No products found'))
+                  : ListView.separated(
+                      itemCount: visibleProducts.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final product = visibleProducts[index];
+                        final selected = _selectedBarcodeProductIds.contains(
+                          product.id,
+                        );
+                        final quantity = _barcodeQuantityForProduct(product.id);
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: selected,
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    if (value) {
+                                      _selectedBarcodeProductIds.add(
+                                        product.id,
+                                      );
+                                      _barcodeQuantityByProduct.putIfAbsent(
+                                        product.id,
+                                        () => 1,
+                                      );
+                                    } else {
+                                      _selectedBarcodeProductIds.remove(
+                                        product.id,
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'SKU: ${product.id} | Barcode: ${product.barcode} | Category: ${product.category} | ${_money(product.price)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF6D7383),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: selected
+                                        ? () => _setBarcodeQuantityForProduct(
+                                            product.id,
+                                            quantity - 1,
+                                          )
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 44,
+                                    child: Text(
+                                      '$quantity',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: selected
+                                        ? () => _setBarcodeQuantityForProduct(
+                                            product.id,
+                                            quantity + 1,
+                                          )
+                                        : null,
+                                    icon: const Icon(Icons.add_circle_outline),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: () => _printProductBarcode(product),
+                                icon: const Icon(Icons.print_outlined),
+                                label: const Text('Single Print'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSalesPage() {
     final query = _salesSearchController.text.trim().toLowerCase();
-    final filtered = _sales.where((s) {
+    final periodFiltered = _salesForPeriod(_salesTimeFilter, _sales);
+    final filtered = periodFiltered.where((s) {
       if (query.isNotEmpty) {
         if (!s.id.toLowerCase().contains(query) &&
             !s.customerName.toLowerCase().contains(query) &&
@@ -4054,6 +4630,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'Today',
                         'This Week',
                         'This Month',
+                        'This Year',
                       ],
                       onChanged: (v) => setState(() => _salesTimeFilter = v),
                     ),
@@ -4409,8 +4986,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                           await _showCustomerDialog(
                                                             existing: c,
                                                           );
-                                                      if (edited == null)
+                                                      if (edited == null) {
                                                         return;
+                                                      }
                                                       setState(() {
                                                         final i = _customers
                                                             .indexWhere(
@@ -5658,9 +6236,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ElevatedButton.icon(
                 onPressed: _canManageEmployees
                     ? () async {
+                        final authService = context.read<AuthService>();
                         final created = await _showUserDialog();
                         if (created == null) return;
-                        final authService = context.read<AuthService>();
                         final createdLogin = await authService.createStoreLogin(
                           storeName: _companyName,
                           tenantId: _activeTenantId ?? 'local',
@@ -5944,6 +6522,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   IconButton(
                                     onPressed: _canManageEmployees
                                         ? () async {
+                                            final authService = context
+                                                .read<AuthService>();
                                             final edited =
                                                 await _showUserDialog(
                                                   existing: user,
@@ -5957,8 +6537,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             });
 
                                             if (edited.password.isNotEmpty) {
-                                              final authService = context
-                                                  .read<AuthService>();
                                               await authService
                                                   .createStoreLogin(
                                                     storeName: _companyName,

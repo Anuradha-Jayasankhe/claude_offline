@@ -76,6 +76,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthCheckStatusRequested event,
     Emitter<AuthState> emit,
   ) async {
+    emit(AuthLoading());
     final isLoggedIn = await _authService.isLoggedIn();
 
     if (isLoggedIn) {
