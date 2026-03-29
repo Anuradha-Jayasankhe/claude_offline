@@ -29,6 +29,7 @@ class MyApp extends StatelessWidget {
           create: (_) => AuthBloc(context.read<AuthService>()),
           child: MaterialApp(
             title: 'Store Buddy POS',
+            debugShowCheckedModeBanner: false,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
               useMaterial3: true,

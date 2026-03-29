@@ -30,23 +30,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_NavItem> _storeNavItems = const [
     _NavItem(
       key: 'dashboard',
-      label: 'Dashboard',
+      label: 'Owner Dashboard',
       icon: Icons.dashboard_rounded,
     ),
-    _NavItem(key: 'pos', label: 'POS', icon: Icons.point_of_sale_rounded),
+    _NavItem(
+      key: 'pos',
+      label: 'Point of Sale',
+      icon: Icons.point_of_sale_rounded,
+    ),
     _NavItem(
       key: 'products',
       label: 'Products',
       icon: Icons.inventory_2_rounded,
     ),
+    _NavItem(
+      key: 'categories',
+      label: 'Categories',
+      icon: Icons.category_outlined,
+    ),
     _NavItem(key: 'sales', label: 'Sales', icon: Icons.receipt_long_rounded),
     _NavItem(key: 'customers', label: 'Customers', icon: Icons.groups_rounded),
     _NavItem(
-      key: 'inventory',
-      label: 'Inventory',
-      icon: Icons.warehouse_rounded,
+      key: 'creditManagement',
+      label: 'Credit Management',
+      icon: Icons.credit_card_outlined,
     ),
     _NavItem(key: 'employees', label: 'Employees', icon: Icons.badge_rounded),
+    _NavItem(
+      key: 'attendance',
+      label: 'Attendance',
+      icon: Icons.watch_later_outlined,
+    ),
+    _NavItem(key: 'payroll', label: 'Payroll', icon: Icons.paid_outlined),
     _NavItem(key: 'users', label: 'Users', icon: Icons.manage_accounts_rounded),
     _NavItem(key: 'reports', label: 'Reports', icon: Icons.bar_chart_rounded),
     _NavItem(key: 'settings', label: 'Settings', icon: Icons.settings_rounded),
@@ -57,14 +72,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ),
     _NavItem(key: 'services', label: 'Services', icon: Icons.build_rounded),
     _NavItem(
+      key: 'jobCards',
+      label: 'Job Cards',
+      icon: Icons.assignment_rounded,
+    ),
+    _NavItem(
+      key: 'warranties',
+      label: 'Warranties',
+      icon: Icons.verified_user_outlined,
+    ),
+    _NavItem(
       key: 'suppliers',
       label: 'Suppliers',
       icon: Icons.local_shipping_rounded,
     ),
     _NavItem(
-      key: 'invoices',
-      label: 'Invoices',
-      icon: Icons.request_page_rounded,
+      key: 'purchaseOrders',
+      label: 'Purchase Orders',
+      icon: Icons.assignment_outlined,
     ),
     _NavItem(key: 'sync', label: 'Sync Manager', icon: Icons.sync_rounded),
   ];
@@ -130,6 +155,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_HeldCart> _heldCarts = [];
   final List<_InvoiceItem> _invoices = [];
   final List<_PurchaseOrderItem> _purchaseOrders = [];
+  final List<_AttendanceRecordItem> _attendanceRecords = [];
+  final List<_PayrollRecordItem> _payrollRecords = [];
   final List<_SyncItem> _syncQueue = [];
   final Map<String, List<_CreditPaymentItem>> _customerCreditPayments = {};
 
@@ -162,10 +189,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _receiptPaper = '80mm';
   String _receiptMargin = '8';
   String _receiptFontScale = '1.0';
+  String _profileName = 'Admin Owner';
+  String _profileEmail = 'owner@store.local';
+  String _profilePhone = '+94 77 123 4567';
+  String _profileCurrentPassword = '';
+  String _profileNewPassword = '';
+  String _profileConfirmPassword = '';
+  String _companyEmail = 'hello@storebuddy.local';
+  String _companyPhone = '+94 11 555 0101';
+  String _companyAddress = 'No. 12, Main Street, Colombo';
+  String _companyRegNo = 'BR-54820';
+  String _uiTheme = 'Light';
+  String _uiLanguage = 'English';
+  bool _prefSound = true;
+  bool _prefAutoPrint = false;
+  bool _prefCompact = false;
+  bool _prefRequireSaleConfirmation = true;
+  bool _notifyEmail = true;
+  bool _notifySms = false;
+  bool _notifyPayroll = true;
+  String _payrollCycle = 'Monthly';
+  String _payrollWorkingDays = '26';
+  String _payrollOtRate = '1.5';
+  String _payrollLatePenalty = '500';
+  bool _payrollAutoGenerate = false;
+  bool _payrollEnableEpf = true;
   String _selectedReportType = 'sales';
   String _settingsTab = 'general';
-  String _salesFilterStatus = 'ALL';
+  final String _salesFilterStatus = 'ALL';
   String _salesFilterPayment = 'ALL';
+  String _salesCashierFilter = 'All Cashiers';
+  String _salesCustomerFilter = 'All Customers';
+  String _salesItemsFilter = 'All Items';
+  String _salesTimeFilter = 'All Time';
+  String _dashboardPeriod = 'This Month';
+  String _posCategoryFilter = 'All Categories';
+  String _purchaseOrderStatusFilter = 'All Statuses';
   DateTime? _lastSyncAt;
   String? _lastSyncError;
 
@@ -183,6 +242,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _salesSearchController = TextEditingController();
   final TextEditingController _customerSearchController =
       TextEditingController();
+  final TextEditingController _attendanceSearchController =
+      TextEditingController();
+  final TextEditingController _employeeSearchController =
+      TextEditingController();
+  final TextEditingController _usersSearchController = TextEditingController();
   final TextEditingController _productSearchController =
       TextEditingController();
   final TextEditingController _paymentMethodController =
@@ -192,12 +256,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _storeEmailController = TextEditingController();
   final TextEditingController _storePasswordController =
       TextEditingController();
+  final TextEditingController _posCouponController = TextEditingController();
+  final TextEditingController _posGiftCardController = TextEditingController();
+  final TextEditingController _posCustomerSearchController =
+      TextEditingController();
+  final TextEditingController _posCustomerNameController =
+      TextEditingController();
+  final TextEditingController _posCustomerPhoneController =
+      TextEditingController();
+  final TextEditingController _amountPaidController = TextEditingController();
+  final TextEditingController _purchaseOrderSearchController =
+      TextEditingController();
+  final TextEditingController _serviceSearchController =
+      TextEditingController();
+  final TextEditingController _warrantySearchController =
+      TextEditingController();
+  String _jobCardStatusFilter = 'ALL';
+  String _jobCardPriorityFilter = 'ALL';
+  String _warrantyTabKey = 'warranties';
+  DateTime _attendanceMonth = DateTime.now();
+  String _usersRoleFilter = 'All Roles';
+  String _usersStatusFilter = 'All Statuses';
+  String _usersLocationFilter = 'All Locations';
 
   static const String _workspaceStateKey = 'workspace_state';
 
   @override
   void initState() {
     super.initState();
+    _paymentMethodController.text = 'CASH';
     _loadPersistedWorkspaceData();
     _loadStoreLogins();
   }
@@ -206,12 +293,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _salesSearchController.dispose();
     _customerSearchController.dispose();
+    _attendanceSearchController.dispose();
+    _employeeSearchController.dispose();
+    _usersSearchController.dispose();
     _productSearchController.dispose();
     _paymentMethodController.dispose();
     _storeNameController.dispose();
     _tenantIdController.dispose();
     _storeEmailController.dispose();
     _storePasswordController.dispose();
+    _posCouponController.dispose();
+    _posGiftCardController.dispose();
+    _posCustomerSearchController.dispose();
+    _posCustomerNameController.dispose();
+    _posCustomerPhoneController.dispose();
+    _amountPaidController.dispose();
+    _purchaseOrderSearchController.dispose();
+    _serviceSearchController.dispose();
+    _warrantySearchController.dispose();
     super.dispose();
   }
 
@@ -366,7 +465,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       name: item.name,
       phone: item.phone,
       email: item.email.isEmpty ? null : item.email,
-      address: null,
+      address: item.address.isEmpty ? null : item.address,
       creditLimit: item.creditLimit,
       currentBalance: item.currentBalance,
       synced: false,
@@ -381,6 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       name: c.name,
       phone: c.phone,
       email: c.email ?? '',
+      address: c.address ?? '',
       creditLimit: c.creditLimit,
       currentBalance: c.currentBalance,
       loyaltyPoints: 0,
@@ -573,23 +673,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _loyaltyPointsForAmount(double amount) => (amount ~/ 100).toInt();
 
   final List<_SettingsTabItem> _settingsTabs = const [
-    _SettingsTabItem(key: 'general', label: 'General', icon: Icons.settings),
-    _SettingsTabItem(
-      key: 'hours',
-      label: 'Opening Hours',
-      icon: Icons.schedule,
-    ),
-    _SettingsTabItem(key: 'payments', label: 'Payments', icon: Icons.payments),
-    _SettingsTabItem(key: 'tax', label: 'Taxes & Charges', icon: Icons.percent),
+    _SettingsTabItem(key: 'profile', label: 'Profile', icon: Icons.person),
+    _SettingsTabItem(key: 'general', label: 'General', icon: Icons.tune),
+    _SettingsTabItem(key: 'company', label: 'Company', icon: Icons.business),
     _SettingsTabItem(
       key: 'receipt',
-      label: 'Receipt',
+      label: 'Receipt Settings',
       icon: Icons.receipt_long,
     ),
     _SettingsTabItem(
-      key: 'integrations',
-      label: 'Integrations',
-      icon: Icons.link,
+      key: 'preferences',
+      label: 'User Preferences',
+      icon: Icons.palette_outlined,
     ),
     _SettingsTabItem(
       key: 'notifications',
@@ -597,9 +692,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icons.notifications,
     ),
     _SettingsTabItem(
-      key: 'cash',
-      label: 'Cash Drawer',
-      icon: Icons.point_of_sale,
+      key: 'payroll',
+      label: 'Payroll',
+      icon: Icons.request_page_outlined,
     ),
   ];
 
@@ -727,7 +822,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: () {
               final amount = double.tryParse(amountController.text.trim());
               if (amount == null || amount <= 0) return;
-              Navigator.pop(context, amount);
             },
             child: const Text('Record Payment'),
           ),
@@ -918,104 +1012,233 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _manageCategories() async {
-    final updated = await showDialog<List<String>>(
+    final created = await showGeneralDialog<String>(
       context: context,
-      builder: (context) {
-        final items = List<String>.from(_productCategories);
-        final inputController = TextEditingController();
+      barrierDismissible: true,
+      barrierLabel: 'AddCategory',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final nameController = TextEditingController();
+        final descriptionController = TextEditingController();
+        final attributeController = TextEditingController();
+        final attributes = <String>[];
+
         return StatefulBuilder(
-          builder: (context, setLocal) => AlertDialog(
-            title: const Text('Product Categories'),
-            content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 760,
+                  height: double.infinity,
+                  child: Column(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Add New Category',
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
                       Expanded(
-                        child: TextField(
-                          controller: inputController,
-                          decoration: const InputDecoration(
-                            labelText: 'New Category',
-                            border: OutlineInputBorder(),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Category Name *'),
+                                        const SizedBox(height: 6),
+                                        TextField(controller: nameController),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Description'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: descriptionController,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 22),
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Category Attributes',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      final value = attributeController.text
+                                          .trim();
+                                      if (value.isEmpty) return;
+                                      if (attributes.any(
+                                        (x) =>
+                                            x.toLowerCase() ==
+                                            value.toLowerCase(),
+                                      )) {
+                                        return;
+                                      }
+                                      setLocal(() => attributes.add(value));
+                                      attributeController.clear();
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFB227D6),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Add Attribute'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: attributeController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Attribute name (e.g. Color, Size)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onSubmitted: (_) {
+                                  final value = attributeController.text.trim();
+                                  if (value.isEmpty) return;
+                                  if (attributes.any(
+                                    (x) =>
+                                        x.toLowerCase() == value.toLowerCase(),
+                                  )) {
+                                    return;
+                                  }
+                                  setLocal(() => attributes.add(value));
+                                  attributeController.clear();
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              if (attributes.isNotEmpty)
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: attributes
+                                      .map(
+                                        (a) => Chip(
+                                          label: Text(a),
+                                          onDeleted: () => setLocal(
+                                            () => attributes.remove(a),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          final value = inputController.text.trim();
-                          if (value.isEmpty) return;
-                          if (items.any(
-                            (x) => x.toLowerCase() == value.toLowerCase(),
-                          ))
-                            return;
-                          setLocal(() => items.add(value));
-                          inputController.clear();
-                        },
-                        child: const Text('Add'),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8F4FB),
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final name = nameController.text.trim();
+                                if (name.isEmpty) return;
+                                Navigator.pop(context, name);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Create Category'),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 240,
-                    child: ListView.builder(
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final category = items[index];
-                        return ListTile(
-                          title: Text(category),
-                          trailing: IconButton(
-                            onPressed: () {
-                              final inUse = _products.any(
-                                (p) =>
-                                    p.category.toLowerCase() ==
-                                    category.toLowerCase(),
-                              );
-                              if (inUse) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Category is used by products and cannot be removed',
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              setLocal(() => items.removeAt(index));
-                            },
-                            icon: const Icon(Icons.delete_outline),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, items),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
+            );
+          },
         );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
       },
     );
 
-    if (updated == null) return;
+    if (created == null) return;
+    final exists = _productCategories.any(
+      (c) => c.toLowerCase() == created.toLowerCase(),
+    );
+    if (exists) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Category already exists')));
+      return;
+    }
+
     setState(() {
-      _productCategories = updated.toSet().toList();
-      if (_productCategories.isEmpty) {
-        _productCategories = ['General'];
-      }
+      _productCategories = {..._productCategories, created}.toList();
+      _posCategoryFilter = created;
     });
     await _persistWorkspaceData();
   }
@@ -1056,42 +1279,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _showSaleDetails(_SaleRecord sale) async {
-    await showDialog<void>(
+    await showGeneralDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Sale Details • ${sale.id}'),
-        content: SizedBox(
-          width: 460,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Customer: ${sale.customerName}'),
-              Text('Date: ${sale.createdAt.toLocal()}'),
-              Text('Payment: ${sale.paymentMethod}'),
-              Text('Status: ${sale.status}'),
-              const SizedBox(height: 10),
-              Text('Subtotal: ${_money(sale.subtotal)}'),
-              Text('Tax: ${_money(sale.tax)}'),
-              Text(
-                'Total: ${_money(sale.total)}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+      barrierDismissible: true,
+      barrierLabel: 'SaleDetails',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            color: Colors.white,
+            child: SizedBox(
+              width: 520,
+              height: double.infinity,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Sale Details',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _overviewRow('Receipt #', sale.id),
+                          _overviewRow(
+                            'Date & Time',
+                            '${sale.createdAt.month}/${sale.createdAt.day}/${sale.createdAt.year}, ${sale.createdAt.hour.toString().padLeft(2, '0')}:${sale.createdAt.minute.toString().padLeft(2, '0')} ${sale.createdAt.hour >= 12 ? 'PM' : 'AM'}',
+                          ),
+                          _overviewRow(
+                            'Cashier',
+                            _users.isNotEmpty ? _users.first.name : 'Cashier',
+                          ),
+                          _overviewRow(
+                            'Customer',
+                            sale.customerName.isEmpty
+                                ? 'Walk-in'
+                                : sale.customerName,
+                          ),
+                          _overviewRow('Payment', sale.paymentMethod),
+                          _overviewRow('Status', sale.status),
+                          const Divider(height: 24),
+                          _overviewRow('Subtotal', _money(sale.subtotal)),
+                          _overviewRow('Tax', _money(sale.tax)),
+                          _overviewRow('Total', _money(sale.total)),
+                          if (sale.returnReason != null &&
+                              sale.returnReason!.isNotEmpty) ...[
+                            const Divider(height: 24),
+                            const Text(
+                              'Return Reason',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(sale.returnReason!),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: Color(0xFFE6E2EF))),
+                    ),
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              if (sale.returnReason != null &&
-                  sale.returnReason!.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text('Return Reason: ${sale.returnReason}'),
-              ],
-            ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
     );
   }
 
@@ -1110,6 +1412,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'heldCarts': _heldCarts.map((e) => e.toJson()).toList(),
       'invoices': _invoices.map((e) => e.toJson()).toList(),
       'purchaseOrders': _purchaseOrders.map((e) => e.toJson()).toList(),
+      'attendanceRecords': _attendanceRecords.map((e) => e.toJson()).toList(),
+      'payrollRecords': _payrollRecords.map((e) => e.toJson()).toList(),
       'syncQueue': _syncQueue.map((e) => e.toJson()).toList(),
       'customerCreditPayments': _customerCreditPayments.map(
         (key, value) =>
@@ -1142,6 +1446,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'receiptPaper': _receiptPaper,
         'receiptMargin': _receiptMargin,
         'receiptFontScale': _receiptFontScale,
+        'profileName': _profileName,
+        'profileEmail': _profileEmail,
+        'profilePhone': _profilePhone,
+        'companyEmail': _companyEmail,
+        'companyPhone': _companyPhone,
+        'companyAddress': _companyAddress,
+        'companyRegNo': _companyRegNo,
+        'uiTheme': _uiTheme,
+        'uiLanguage': _uiLanguage,
+        'prefSound': _prefSound,
+        'prefAutoPrint': _prefAutoPrint,
+        'prefCompact': _prefCompact,
+        'prefRequireSaleConfirmation': _prefRequireSaleConfirmation,
+        'notifyEmail': _notifyEmail,
+        'notifySms': _notifySms,
+        'notifyPayroll': _notifyPayroll,
+        'payrollCycle': _payrollCycle,
+        'payrollWorkingDays': _payrollWorkingDays,
+        'payrollOtRate': _payrollOtRate,
+        'payrollLatePenalty': _payrollLatePenalty,
+        'payrollAutoGenerate': _payrollAutoGenerate,
+        'payrollEnableEpf': _payrollEnableEpf,
         'lastSyncAt': _lastSyncAt?.toIso8601String(),
       },
     };
@@ -1194,6 +1520,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .toList();
       final poList = (decoded['purchaseOrders'] as List<dynamic>? ?? [])
           .map((e) => _PurchaseOrderItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      final attendanceList =
+          (decoded['attendanceRecords'] as List<dynamic>? ?? [])
+              .map(
+                (e) => _AttendanceRecordItem.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList();
+      final payrollList = (decoded['payrollRecords'] as List<dynamic>? ?? [])
+          .map((e) => _PayrollRecordItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       final syncList = (decoded['syncQueue'] as List<dynamic>? ?? [])
           .map((e) => _SyncItem.fromJson(Map<String, dynamic>.from(e)))
@@ -1288,6 +1625,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _purchaseOrders
           ..clear()
           ..addAll(poList);
+        _attendanceRecords
+          ..clear()
+          ..addAll(attendanceList);
+        _payrollRecords
+          ..clear()
+          ..addAll(payrollList);
         _syncQueue
           ..clear()
           ..addAll(syncList);
@@ -1326,6 +1669,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _receiptPaper = settings['receiptPaper'] ?? _receiptPaper;
         _receiptMargin = settings['receiptMargin'] ?? _receiptMargin;
         _receiptFontScale = settings['receiptFontScale'] ?? _receiptFontScale;
+        _profileName = settings['profileName'] ?? _profileName;
+        _profileEmail = settings['profileEmail'] ?? _profileEmail;
+        _profilePhone = settings['profilePhone'] ?? _profilePhone;
+        _companyEmail = settings['companyEmail'] ?? _companyEmail;
+        _companyPhone = settings['companyPhone'] ?? _companyPhone;
+        _companyAddress = settings['companyAddress'] ?? _companyAddress;
+        _companyRegNo = settings['companyRegNo'] ?? _companyRegNo;
+        _uiTheme = settings['uiTheme'] ?? _uiTheme;
+        _uiLanguage = settings['uiLanguage'] ?? _uiLanguage;
+        _prefSound = settings['prefSound'] ?? _prefSound;
+        _prefAutoPrint = settings['prefAutoPrint'] ?? _prefAutoPrint;
+        _prefCompact = settings['prefCompact'] ?? _prefCompact;
+        _prefRequireSaleConfirmation =
+            settings['prefRequireSaleConfirmation'] ??
+            _prefRequireSaleConfirmation;
+        _notifyEmail = settings['notifyEmail'] ?? _notifyEmail;
+        _notifySms = settings['notifySms'] ?? _notifySms;
+        _notifyPayroll = settings['notifyPayroll'] ?? _notifyPayroll;
+        _payrollCycle = settings['payrollCycle'] ?? _payrollCycle;
+        _payrollWorkingDays =
+            settings['payrollWorkingDays'] ?? _payrollWorkingDays;
+        _payrollOtRate = settings['payrollOtRate'] ?? _payrollOtRate;
+        _payrollLatePenalty =
+            settings['payrollLatePenalty'] ?? _payrollLatePenalty;
+        _payrollAutoGenerate =
+            settings['payrollAutoGenerate'] ?? _payrollAutoGenerate;
+        _payrollEnableEpf = settings['payrollEnableEpf'] ?? _payrollEnableEpf;
         _lastSyncAt = settings['lastSyncAt'] != null
             ? DateTime.tryParse(settings['lastSyncAt'])
             : null;
@@ -1355,99 +1725,164 @@ class _DashboardScreenState extends State<DashboardScreen> {
         pageFormat: _receiptPageFormat(),
         margin: pw.EdgeInsets.all(marginValue),
         build: (context) {
+          String money(double v) => v.toStringAsFixed(2);
+
+          pw.Widget rowLine(String label, String value, {bool bold = false}) {
+            return pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Text(
+                    label,
+                    style: pw.TextStyle(
+                      fontSize: 11 * fontScale,
+                      fontWeight: bold
+                          ? pw.FontWeight.bold
+                          : pw.FontWeight.normal,
+                    ),
+                  ),
+                ),
+                pw.Text(
+                  value,
+                  style: pw.TextStyle(
+                    fontSize: 11 * fontScale,
+                    fontWeight: bold
+                        ? pw.FontWeight.bold
+                        : pw.FontWeight.normal,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          final cashierName = _users.isNotEmpty ? _users.first.name : 'Cashier';
+          final amountPaid =
+              double.tryParse(_amountPaidController.text.trim()) ?? sale.total;
+
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(
-                _receiptHeader,
-                style: pw.TextStyle(
-                  fontSize: 18 * fontScale,
-                  fontWeight: pw.FontWeight.bold,
+              pw.Center(
+                child: pw.Text(
+                  _companyName,
+                  style: pw.TextStyle(
+                    fontSize: 14 * fontScale,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'Invoice: ${sale.id}',
-                style: pw.TextStyle(fontSize: 11 * fontScale),
+              pw.Center(
+                child: pw.Text(
+                  '123 Business Street, City, State 12345',
+                  style: pw.TextStyle(fontSize: 9.5 * fontScale),
+                ),
               ),
-              pw.Text(
-                'Date: ${sale.createdAt.toLocal()}',
-                style: pw.TextStyle(fontSize: 11 * fontScale),
+              pw.Center(
+                child: pw.Text(
+                  '+1 (555) 123-4567',
+                  style: pw.TextStyle(fontSize: 9.5 * fontScale),
+                ),
               ),
-              pw.Text(
-                'Customer: ${sale.customerName}',
-                style: pw.TextStyle(fontSize: 11 * fontScale),
+              pw.SizedBox(height: 6),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              pw.Center(
+                child: pw.Text(
+                  'CUSTOMER RECEIPT',
+                  style: pw.TextStyle(
+                    fontSize: 12 * fontScale,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
               ),
-              pw.SizedBox(height: 12),
+              pw.SizedBox(height: 6),
+              rowLine('Receipt # ::', sale.id),
+              rowLine(
+                'Date::',
+                '${sale.createdAt.month}/${sale.createdAt.day}/${sale.createdAt.year}, ${sale.createdAt.hour.toString().padLeft(2, '0')}:${sale.createdAt.minute.toString().padLeft(2, '0')}:${sale.createdAt.second.toString().padLeft(2, '0')}',
+              ),
+              rowLine('Cashier::', cashierName),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              pw.Center(
+                child: pw.Text(
+                  'ITEMS PURCHASED',
+                  style: pw.TextStyle(
+                    fontSize: 11 * fontScale,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Center(
+                child: pw.Text(
+                  'PRODUCTS',
+                  style: pw.TextStyle(
+                    fontSize: 10 * fontScale,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 6),
               ...lines.map(
-                (line) => pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Expanded(
-                      child: pw.Text(
-                        '${line.product.name} x${line.qty}',
-                        style: pw.TextStyle(fontSize: 11 * fontScale),
+                (line) => pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 6),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        line.product.name,
+                        style: pw.TextStyle(
+                          fontSize: 11 * fontScale,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    pw.Text(
-                      '$_currency ${(line.product.price * line.qty).toStringAsFixed(2)}',
-                      style: pw.TextStyle(fontSize: 11 * fontScale),
-                    ),
-                  ],
+                      pw.Text(
+                        'SKU: ${line.product.id.toLowerCase()}',
+                        style: pw.TextStyle(fontSize: 10 * fontScale),
+                      ),
+                      rowLine(
+                        '${line.qty} x $_currency ${money(line.product.price)}',
+                        '\$${money(line.product.price * line.qty)}',
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              pw.Divider(),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Subtotal',
-                    style: pw.TextStyle(fontSize: 11 * fontScale),
-                  ),
-                  pw.Text(
-                    '$_currency ${sale.subtotal.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 11 * fontScale),
-                  ),
-                ],
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              rowLine('Subtotal:', '\$${money(sale.subtotal)}'),
+              rowLine('TOTAL:', '\$${money(sale.total)}', bold: true),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              rowLine('Payment Method:', sale.paymentMethod),
+              rowLine('Amount Paid:', '\$${money(amountPaid)}'),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              pw.Center(
+                child: pw.Text(
+                  'Thank you for your business!',
+                  style: pw.TextStyle(fontSize: 10 * fontScale),
+                ),
               ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Tax', style: pw.TextStyle(fontSize: 11 * fontScale)),
-                  pw.Text(
-                    '$_currency ${sale.tax.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 11 * fontScale),
-                  ),
-                ],
+              pw.Center(
+                child: pw.Text(
+                  'Please keep this receipt for your records',
+                  style: pw.TextStyle(fontSize: 9.5 * fontScale),
+                ),
               ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Total',
-                    style: pw.TextStyle(
-                      fontWeight: pw.FontWeight.bold,
-                      fontSize: 12 * fontScale,
-                    ),
-                  ),
-                  pw.Text(
-                    '$_currency ${sale.total.toStringAsFixed(2)}',
-                    style: pw.TextStyle(
-                      fontWeight: pw.FontWeight.bold,
-                      fontSize: 12 * fontScale,
-                    ),
-                  ),
-                ],
+              pw.Center(
+                child: pw.Text(
+                  'Return Policy: 30 days with receipt',
+                  style: pw.TextStyle(fontSize: 9.5 * fontScale),
+                ),
               ),
-              pw.SizedBox(height: 12),
-              pw.Text(
-                _receiptNote,
-                style: pw.TextStyle(fontSize: 11 * fontScale),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
+              pw.Center(
+                child: pw.Text(
+                  'Store Buddy POS',
+                  style: pw.TextStyle(fontSize: 10 * fontScale),
+                ),
               ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                _receiptFooter,
-                style: pw.TextStyle(fontSize: 11 * fontScale),
+              pw.Center(
+                child: pw.Text(
+                  'Call 0662223968 for more info',
+                  style: pw.TextStyle(fontSize: 9.5 * fontScale),
+                ),
               ),
             ],
           );
@@ -1694,58 +2129,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final visibleNavItems = _visibleNavItems();
     return Container(
       width: 240,
-      color: const Color(0xFF1F1B54),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8F8FC),
+        border: Border(right: BorderSide(color: Color(0xFFE8E5F4))),
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+            decoration: const BoxDecoration(
+              color: Color(0xFFB227D6),
+              border: Border(bottom: BorderSide(color: Color(0xFFE8E5F4))),
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5B35D5),
-                    borderRadius: BorderRadius.circular(10),
+                  width: 30,
+                  height: 30,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF6F0FF),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    color: Colors.white,
-                    size: 20,
+                  child: const Center(
+                    child: Text(
+                      'S',
+                      style: TextStyle(
+                        color: Color(0xFF7A1EA4),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        state.user.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        state.user.tenantId,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFBFC3E8),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                const Text(
+                  'Store Buddy',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Expanded(
             child: ListView.builder(
               itemCount: visibleNavItems.length,
@@ -1757,7 +2185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Material(
                     color: selected
-                        ? const Color(0xFF5B35D5)
+                        ? const Color(0xFFF1E4FA)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
@@ -1772,10 +2200,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Icon(
                               item.icon,
-                              size: 20,
+                              size: 18,
                               color: selected
-                                  ? Colors.white
-                                  : const Color(0xFFBFC3E8),
+                                  ? const Color(0xFFB227D6)
+                                  : const Color(0xFF646B7C),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -1783,8 +2211,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 item.label,
                                 style: TextStyle(
                                   color: selected
-                                      ? Colors.white
-                                      : const Color(0xFFBFC3E8),
+                                      ? const Color(0xFF7A1EA4)
+                                      : const Color(0xFF2A3042),
                                   fontWeight: selected
                                       ? FontWeight.w700
                                       : FontWeight.w500,
@@ -1800,32 +2228,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
           ),
-          const Divider(height: 1, color: Color(0xFF2E2A66)),
+          const Divider(height: 1, color: Color(0xFFE8E5F4)),
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
             child: Material(
-              color: Colors.transparent,
+              color: const Color(0xFFF3F4F9),
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () =>
                     context.read<AuthBloc>().add(AuthLogoutRequested()),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.logout_rounded,
-                        size: 20,
-                        color: Color(0xFFFF7C7C),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Logout',
-                        style: TextStyle(
-                          color: Color(0xFFFF7C7C),
-                          fontWeight: FontWeight.w700,
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: const Color(0xFFB227D6),
+                        child: Text(
+                          state.user.name.isNotEmpty
+                              ? state.user.name[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              state.user.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2A3042),
+                              ),
+                            ),
+                            Text(
+                              state.user.role.toUpperCase(),
+                              style: const TextStyle(
+                                color: Color(0xFF7E8495),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.logout_rounded,
+                        size: 18,
+                        color: Color(0xFFE35D5D),
                       ),
                     ],
                   ),
@@ -1840,71 +2301,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTopBar(AuthAuthenticated state) {
     return Container(
-      height: 72,
+      height: 68,
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.center,
       child: Row(
         children: [
           Text(
-            _selectedPageTitle(),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+            'Welcome back, ${state.user.name.isEmpty ? 'User' : state.user.name} !',
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700),
           ),
           const Spacer(),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded),
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF60667A),
+            ),
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: _syncStatusColor().withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFD6D9E4)),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.sync, size: 14, color: _syncStatusColor()),
-                const SizedBox(width: 6),
-                Text(
-                  _syncStatusLabel(),
-                  style: TextStyle(
-                    color: _syncStatusColor(),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
+                Icon(
+                  Icons.translate_rounded,
+                  size: 16,
+                  color: Color(0xFF60667A),
+                ),
+                SizedBox(width: 6),
+                Text('English', style: TextStyle(color: Color(0xFF2A3042))),
+                SizedBox(width: 2),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: Color(0xFF60667A),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: const Color(0xFF5B35D5),
-            child: Text(
-              state.user.name.isNotEmpty
-                  ? state.user.name[0].toUpperCase()
-                  : 'U',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.dark_mode_outlined,
+              color: Color(0xFF60667A),
             ),
           ),
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                state.user.name,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFFB227D6),
+            child: Text(
+              state.user.name.isNotEmpty
+                  ? state.user.name.substring(0, 2).toUpperCase()
+                  : 'US',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
               ),
-              Text(
-                state.user.role.toUpperCase(),
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -1929,14 +2391,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildPosPage();
       case 'products':
         return _buildProductsPage();
+      case 'categories':
+        return _buildCategoriesPage();
       case 'sales':
         return _buildSalesPage();
       case 'customers':
         return _buildCustomersPage();
-      case 'inventory':
-        return _buildInventoryPage();
+      case 'creditManagement':
+        return _buildCreditManagementPage();
       case 'employees':
         return _buildEmployeesPage();
+      case 'attendance':
+        return _buildAttendancePage();
+      case 'payroll':
+        return _buildPayrollPage();
       case 'users':
         return _buildUsersPage();
       case 'reports':
@@ -1947,10 +2415,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildMarketingPage();
       case 'services':
         return _buildServicesPage();
+      case 'jobCards':
+        return _buildJobCardsPage();
+      case 'warranties':
+        return _buildWarrantiesPage();
       case 'suppliers':
         return _buildSuppliersPage();
-      case 'invoices':
-        return _buildInvoicesPage();
+      case 'purchaseOrders':
+        return _buildPurchaseOrdersPage();
       case 'sync':
         return _buildSyncPage();
       default:
@@ -1962,15 +2434,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final totalRevenue = _sales.fold<double>(0, (sum, s) => sum + s.total);
     final avgOrder = _sales.isEmpty ? 0.0 : totalRevenue / _sales.length;
     final lowStock = _products.where((p) => p.stock <= p.minStock).length;
+    final activeEmployees = _employees.where((e) => e.active).length;
+    final inventoryValue = _products.fold<double>(
+      0,
+      (sum, p) => sum + (p.price * p.stock),
+    );
+    final productRevenue = _sales.fold<double>(
+      0,
+      (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? 0 : s.total),
+    );
+    final serviceRevenue = _sales.fold<double>(
+      0,
+      (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? s.total : 0),
+    );
+    final profitMargin = totalRevenue == 0
+        ? 0
+        : ((totalRevenue - inventoryValue.clamp(0, totalRevenue)) /
+                  totalRevenue) *
+              100;
+    final categorySummary =
+        _products
+            .fold<Map<String, int>>({}, (map, p) {
+              map[p.category] = (map[p.category] ?? 0) + 1;
+              return map;
+            })
+            .entries
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    final topSeller = _sales.isEmpty ? null : _sales.first;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'ABC Business',
+                  style: TextStyle(fontSize: 46, fontWeight: FontWeight.w700),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFB227D6), width: 2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _dashboardPeriod,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'This Week',
+                        child: Text('This Week'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'This Month',
+                        child: Text('This Month'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'This Quarter',
+                        child: Text('This Quarter'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _dashboardPeriod = v);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
           const Text(
-            'Your restaurant performance at a glance',
-            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+            'Complete business overview and management tools.',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 22),
           ),
           const SizedBox(height: 18),
           Wrap(
@@ -1981,123 +2525,406 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 title: 'Total Revenue',
                 value: _money(totalRevenue),
                 icon: Icons.payments_rounded,
+                subtitle: 'All time sales',
+                deltaText: '+0.0%',
+                deltaHint: 'vs last period',
+                deltaColor: const Color(0xFF1FA35B),
               ),
               _MetricCard(
-                title: 'Total Orders',
-                value: '${_sales.length}',
-                icon: Icons.shopping_cart_rounded,
+                title: 'Product Revenue',
+                value: _money(productRevenue),
+                icon: Icons.shopping_bag_outlined,
+                subtitle: 'From products',
+                deltaText: '+0.0%',
+                deltaHint: 'vs last period',
+                deltaColor: const Color(0xFF1FA35B),
               ),
               _MetricCard(
-                title: 'Customers',
-                value: '${_customers.length}',
-                icon: Icons.group_rounded,
+                title: 'Service Revenue',
+                value: _money(serviceRevenue),
+                icon: Icons.settings_suggest_outlined,
+                subtitle: 'From services',
+                deltaText: serviceRevenue.isNaN ? '+NaN%' : '+0.0%',
+                deltaHint: 'vs last period',
+                deltaColor: const Color(0xFF1FA35B),
               ),
               _MetricCard(
-                title: 'Average Order',
-                value: _money(avgOrder),
-                icon: Icons.trending_up_rounded,
+                title: 'Profit Margin',
+                value: '${profitMargin.toStringAsFixed(1)}%',
+                icon: Icons.bar_chart_rounded,
+                subtitle: 'After product costs',
+                deltaText: profitMargin >= 25
+                    ? '+Excellent'
+                    : 'Needs attention',
+                deltaHint: 'vs last period',
+                deltaColor: profitMargin >= 25
+                    ? const Color(0xFF1FA35B)
+                    : const Color(0xFFE35D5D),
+              ),
+              _MetricCard(
+                title: 'Employee Cost',
+                value: _money(0),
+                icon: Icons.groups_2_outlined,
+                subtitle: '$activeEmployees active employees',
+                deltaText: '+${_money(0)}',
+                deltaHint: 'vs last period',
+                deltaColor: const Color(0xFF1FA35B),
               ),
             ],
           ),
           const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Business Alerts (${lowStock > 0 ? 1 : 0})',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFCB7E3D),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFAF2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF5E0C6)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Low Stock Alert',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              Text(
+                                '$lowStock products are running low on stock',
+                                style: const TextStyle(
+                                  color: Color(0xFF7E8495),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: () =>
+                              setState(() => _selectedNavKey = 'products'),
+                          child: const Text('Manage Products'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 3,
                 child: Card(
-                  child: SizedBox(
-                    height: 320,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Sales Overview',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 22,
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Sales Overview',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Total transactions: ${_sales.length}',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 10),
-                          Expanded(
-                            child: _sales.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      'No revenue data for this period',
-                                      style: TextStyle(
-                                        color: Color(0xFF8A90A2),
-                                      ),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _sales.length,
-                                    itemBuilder: (context, index) {
-                                      final sale = _sales[index];
-                                      return ListTile(
-                                        dense: true,
-                                        title: Text(sale.id),
-                                        subtitle: Text(
-                                          '${sale.paymentMethod} • ${sale.createdAt.toLocal()}',
-                                        ),
-                                        trailing: Text(_money(sale.total)),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 12),
+                        _overviewRow('Today', _money(totalRevenue)),
+                        _overviewRow('This Week', _money(totalRevenue)),
+                        _overviewRow('This Month', _money(totalRevenue)),
+                        const Divider(height: 22),
+                        _overviewRow('Avg Transaction', _money(avgOrder)),
+                      ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
-                flex: 2,
                 child: Card(
-                  child: SizedBox(
-                    height: 320,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Operational Highlights',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 22,
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment Status',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 10),
-                          ListTile(
-                            title: const Text('Low Stock Items'),
-                            trailing: Text('$lowStock'),
+                        ),
+                        const SizedBox(height: 12),
+                        _overviewRow('Total Invoices', '${_invoices.length}'),
+                        _overviewRow('Pending Payments', '0'),
+                        _overviewRow(
+                          'Overdue Payments',
+                          '0',
+                          valueColor: const Color(0xFF1FA35B),
+                        ),
+                        const Divider(height: 22),
+                        _overviewRow('Pending Amount', _money(0)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Inventory Overview',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                           ),
-                          ListTile(
-                            title: const Text('Active Employees'),
-                            trailing: Text(
-                              '${_employees.where((e) => e.active).length}',
-                            ),
-                          ),
-                          ListTile(
-                            title: const Text('Pending Sync Items'),
-                            trailing: Text('${_syncQueue.length}'),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 12),
+                        _overviewRow('Total Products', '${_products.length}'),
+                        _overviewRow(
+                          'Low Stock',
+                          '$lowStock',
+                          valueColor: lowStock > 0
+                              ? const Color(0xFFE35D5D)
+                              : const Color(0xFF1FA35B),
+                        ),
+                        _overviewRow('Inventory Value', _money(inventoryValue)),
+                        const Divider(height: 22),
+                        _overviewRow(
+                          'Categories',
+                          categorySummary.isEmpty
+                              ? '-'
+                              : categorySummary.first.key,
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Team Performance',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF4CC),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                '1',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    topSeller?.customerName ??
+                                        (_users.isNotEmpty
+                                            ? _users.first.name
+                                            : 'Team Member'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_sales.length} sales',
+                                    style: const TextStyle(
+                                      color: Color(0xFF7E8495),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              _money(topSeller?.total ?? totalRevenue),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(flex: 2, child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quick Management Actions',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.bar_chart_rounded,
+                          label: 'Sales Report',
+                          onTap: () =>
+                              setState(() => _selectedNavKey = 'reports'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.groups_rounded,
+                          label: 'Employees',
+                          onTap: () =>
+                              setState(() => _selectedNavKey = 'employees'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Products',
+                          onTap: () =>
+                              setState(() => _selectedNavKey = 'products'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Payroll',
+                          onTap: () =>
+                              setState(() => _selectedNavKey = 'payroll'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.manage_accounts_rounded,
+                          label: 'Users',
+                          onTap: () =>
+                              setState(() => _selectedNavKey = 'users'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickActionTile(
+                          icon: Icons.refresh_rounded,
+                          label: 'Refresh',
+                          onTap: () => setState(() {}),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _overviewRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF646B7C), fontSize: 16),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? const Color(0xFF2A3042),
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        foregroundColor: const Color(0xFF4A5164),
+        side: const BorderSide(color: Color(0xFFD7DBE8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(height: 6),
+          Text(label),
         ],
       ),
     );
@@ -2106,10 +2933,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildPosPage() {
     final filteredProducts = _products.where((p) {
       final q = _productSearchController.text.trim().toLowerCase();
+      final matchCategory =
+          _posCategoryFilter == 'All Categories' ||
+          p.category == _posCategoryFilter;
+      if (!matchCategory) return false;
       if (q.isEmpty) return true;
       return p.name.toLowerCase().contains(q) ||
           p.category.toLowerCase().contains(q) ||
-          p.id.toLowerCase().contains(q);
+          p.id.toLowerCase().contains(q) ||
+          p.barcode.toLowerCase().contains(q);
     }).toList();
 
     final cartItems = _cart.entries
@@ -2127,315 +2959,605 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final taxRate = double.tryParse(_taxRate) ?? 0;
     final taxAmount = _receiptShowTax ? subtotal * (taxRate / 100) : 0.0;
     final grandTotal = subtotal + taxAmount;
+    final paymentMethod = _paymentMethodController.text.isEmpty
+        ? 'CASH'
+        : _paymentMethodController.text;
+    final posCategories = ['All Categories', ..._productCategories];
 
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Point of Sale',
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Process sales transactions quickly and efficiently.',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+          ),
+          const SizedBox(height: 14),
           Expanded(
-            flex: 3,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Products',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _productSearchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        hintText: 'Search product by name/category/id',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: GridView.builder(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 1.6,
-                            ),
-                        itemCount: filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final p = filteredProducts[index];
-                          return InkWell(
-                            onTap: p.stock <= 0
-                                ? null
-                                : () {
-                                    setState(() {
-                                      _cart[p.id] = (_cart[p.id] ?? 0) + 1;
-                                    });
-                                  },
-                            child: Card(
-                              color: p.stock <= 0
-                                  ? Colors.grey.shade200
-                                  : Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      p.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(p.category),
-                                    const Spacer(),
-                                    Text(_money(p.price)),
-                                    Text(
-                                      'Stock ${p.stock}',
-                                      style: TextStyle(
-                                        color: p.stock <= p.minStock
-                                            ? Colors.red
-                                            : Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE4E1EF)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _productSearchController,
+                                onChanged: (_) => setState(() {}),
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Search products or scan barcode...',
+                                  prefixIcon: Icon(Icons.search),
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 2,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Cart',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey<String?>(_selectedCustomerId),
-                      initialValue: _selectedCustomerId,
-                      items: _customers
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.name),
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
+                              onPressed: () {},
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF2E9C64),
+                                side: const BorderSide(
+                                  color: Color(0xFFBFE6CF),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: const Icon(Icons.qr_code_scanner, size: 16),
+                              label: const Text('Scanner Active'),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedCustomerId = v),
-                      decoration: const InputDecoration(
-                        labelText: 'Customer',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: _paymentMethodController.text.isEmpty
-                          ? null
-                          : _paymentMethodController.text,
-                      items: const [
-                        DropdownMenuItem(value: 'CASH', child: Text('CASH')),
-                        DropdownMenuItem(value: 'CARD', child: Text('CARD')),
-                        DropdownMenuItem(
-                          value: 'CHEQUE',
-                          child: Text('CHEQUE'),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: const Color(0xFFD7DCE8),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _posCategoryFilter,
+                                  items: posCategories
+                                      .map(
+                                        (c) => DropdownMenuItem(
+                                          value: c,
+                                          child: Text(c),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) {
+                                    if (v == null) return;
+                                    setState(() => _posCategoryFilter = v);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              onPressed: () =>
+                                  setState(() => _selectedNavKey = 'services'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF9D35DA),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: const Icon(Icons.build, size: 16),
+                              label: const Text('Add Service'),
+                            ),
+                          ],
                         ),
-                        DropdownMenuItem(
-                          value: 'INSTALLMENT',
-                          child: Text('INSTALLMENT'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) _paymentMethodController.text = v;
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Payment Method',
-                        border: OutlineInputBorder(),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: cartItems.isEmpty
-                          ? const Center(child: Text('Cart is empty'))
-                          : ListView.builder(
-                              itemCount: cartItems.length,
-                              itemBuilder: (context, index) {
-                                final line = cartItems[index];
-                                return ListTile(
-                                  title: Text(line.product.name),
-                                  subtitle: Text(_money(line.product.price)),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                childAspectRatio: 2.0,
+                              ),
+                          itemCount: filteredProducts.length,
+                          itemBuilder: (context, index) {
+                            final p = filteredProducts[index];
+                            return InkWell(
+                              onTap: p.stock <= 0
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _cart[p.id] = (_cart[p.id] ?? 0) + 1;
+                                      });
+                                    },
+                              child: Card(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: const BorderSide(
+                                    color: Color(0xFFE6E2EF),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            final next = (line.qty - 1);
-                                            if (next <= 0) {
-                                              _cart.remove(line.product.id);
-                                            } else {
-                                              _cart[line.product.id] = next;
-                                            }
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.remove_circle_outline,
+                                      Text(
+                                        p.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
                                         ),
                                       ),
-                                      Text('${line.qty}'),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            if (line.qty < line.product.stock) {
-                                              _cart[line.product.id] =
-                                                  line.qty + 1;
-                                            }
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.add_circle_outline,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'SKU: ${p.id.toLowerCase()}',
+                                        style: const TextStyle(
+                                          color: Color(0xFF7E8495),
                                         ),
+                                      ),
+                                      const Spacer(),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            _money(p.price),
+                                            style: const TextStyle(
+                                              color: Color(0xFFB227D6),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: p.stock <= p.minStock
+                                                  ? const Color(0xFFFFEAEA)
+                                                  : const Color(0xFFE8F7EC),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'Stock: ${p.stock}',
+                                              style: TextStyle(
+                                                color: p.stock <= p.minStock
+                                                    ? const Color(0xFFE35D5D)
+                                                    : const Color(0xFF2E9C64),
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                );
-                              },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 3,
+                  child: Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Color(0xFFE6E2EF)),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Shopping Cart (${cartItems.length})',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
                             ),
-                    ),
-                    const Divider(),
-                    Text(
-                      'Subtotal: ${_money(subtotal)}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: cartItems.isEmpty
-                                ? null
-                                : _holdCurrentCart,
-                            icon: const Icon(Icons.pause_circle_outline),
-                            label: const Text('Hold Cart'),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _heldCarts.isEmpty
-                                ? null
-                                : _resumeHeldCart,
-                            icon: const Icon(Icons.play_circle_outline),
-                            label: Text('Resume (${_heldCarts.length})'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: cartItems.isEmpty
-                            ? null
-                            : () async {
-                                final sale = _SaleRecord(
-                                  id: 'S${DateTime.now().millisecondsSinceEpoch}',
-                                  customerName: _customers
-                                      .firstWhere(
-                                        (c) => c.id == _selectedCustomerId,
-                                        orElse: () => _customers.first,
-                                      )
-                                      .name,
-                                  paymentMethod: _paymentMethodController.text,
-                                  subtotal: subtotal,
-                                  tax: taxAmount,
-                                  total: grandTotal,
-                                  status: 'COMPLETED',
-                                  createdAt: DateTime.now(),
-                                );
-                                setState(() {
-                                  final selectedCustomer = _customers
-                                      .firstWhere(
-                                        (c) => c.id == _selectedCustomerId,
-                                        orElse: () => _customers.first,
+                          const SizedBox(height: 10),
+                          Container(
+                            constraints: const BoxConstraints(minHeight: 44),
+                            child: cartItems.isEmpty
+                                ? const Text(
+                                    'Cart is empty',
+                                    style: TextStyle(color: Color(0xFF7E8495)),
+                                  )
+                                : Column(
+                                    children: cartItems.map((line) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 5,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    line.product.name,
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${_money(line.product.price)} each',
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF7E8495),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  final next = line.qty - 1;
+                                                  if (next <= 0) {
+                                                    _cart.remove(
+                                                      line.product.id,
+                                                    );
+                                                  } else {
+                                                    _cart[line.product.id] =
+                                                        next;
+                                                  }
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.remove,
+                                                size: 18,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${line.qty}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  if (line.qty <
+                                                      line.product.stock) {
+                                                    _cart[line.product.id] =
+                                                        line.qty + 1;
+                                                  }
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.add,
+                                                size: 18,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  _cart.remove(line.product.id);
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Color(0xFFE35D5D),
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 72,
+                                              child: Text(
+                                                _money(
+                                                  line.product.price * line.qty,
+                                                ),
+                                                textAlign: TextAlign.right,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       );
-                                  selectedCustomer.loyaltyPoints +=
-                                      _loyaltyPointsForAmount(grandTotal);
-                                  if (_paymentMethodController.text ==
-                                      'INSTALLMENT') {
-                                    selectedCustomer.currentBalance +=
-                                        grandTotal;
-                                  }
-
-                                  _sales.insert(0, sale);
-                                  for (final line in cartItems) {
-                                    line.product.stock -= line.qty;
-                                  }
-                                  _cart.clear();
-                                });
-                                await _persistWorkspaceData();
-
-                                if (_saleRepository != null) {
-                                  await _saleRepository!.insertSale(
-                                    _toDomainSale(sale, cartItems),
-                                  );
-                                  await _refreshPendingSyncQueue();
-                                  await _triggerRealtimeSync(
-                                    action: 'INSERT',
-                                    module: 'sales',
-                                    reference: sale.id,
-                                  );
-                                } else {
-                                  await _enqueueSync(
-                                    'INSERT',
-                                    'sales',
-                                    sale.id,
-                                  );
-                                }
-
-                                _printReceipt(sale: sale, lines: cartItems);
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Sale completed: ${sale.id}'),
+                                    }).toList(),
                                   ),
-                                );
-                              },
-                        child: const Text('Checkout'),
+                          ),
+                          const Divider(height: 20),
+                          _overviewRow('Subtotal:', _money(subtotal)),
+                          _overviewRow(
+                            'Tax (${taxRate.toStringAsFixed(1)}%):',
+                            _money(taxAmount),
+                          ),
+                          const Divider(height: 20),
+                          _overviewRow('Total::', _money(grandTotal)),
+                          const Divider(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _posCouponController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter coupon code',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 40,
+                                child: ElevatedButton(
+                                  onPressed: () {},
+                                  child: const Text('Apply'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _posGiftCardController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter gift card code',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 40,
+                                child: ElevatedButton(
+                                  onPressed: () {},
+                                  child: const Text('Apply'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Customer (Optional)',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _posCustomerSearchController,
+                            decoration: const InputDecoration(
+                              hintText:
+                                  'Search customer by name, vehicle number...',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _posCustomerNameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Customer Name (Optional)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _posCustomerPhoneController,
+                            decoration: const InputDecoration(
+                              hintText: 'Phone Number (Optional)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Payment Method',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _posPaymentButton('CASH', 'Cash', paymentMethod),
+                              const SizedBox(width: 8),
+                              _posPaymentButton('CARD', 'Card', paymentMethod),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _posPaymentButton(
+                                'CHEQUE',
+                                'Cheque',
+                                paymentMethod,
+                              ),
+                              const SizedBox(width: 8),
+                              _posPaymentButton(
+                                'INSTALLMENT',
+                                'Installment',
+                                paymentMethod,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Amount Paid',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _amountPaidController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: '0.00',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: cartItems.isEmpty
+                                  ? null
+                                  : () async {
+                                      final selectedCustomer = _customers
+                                          .firstWhere(
+                                            (c) => c.id == _selectedCustomerId,
+                                            orElse: () => _customers.first,
+                                          );
+                                      final enteredName =
+                                          _posCustomerNameController.text
+                                              .trim();
+                                      final customerName = enteredName.isEmpty
+                                          ? selectedCustomer.name
+                                          : enteredName;
+                                      final sale = _SaleRecord(
+                                        id: 'S${DateTime.now().millisecondsSinceEpoch}',
+                                        customerName: customerName,
+                                        paymentMethod: paymentMethod,
+                                        subtotal: subtotal,
+                                        tax: taxAmount,
+                                        total: grandTotal,
+                                        status: 'COMPLETED',
+                                        createdAt: DateTime.now(),
+                                      );
+                                      setState(() {
+                                        selectedCustomer.loyaltyPoints +=
+                                            _loyaltyPointsForAmount(grandTotal);
+                                        if (paymentMethod == 'INSTALLMENT') {
+                                          selectedCustomer.currentBalance +=
+                                              grandTotal;
+                                        }
+
+                                        _sales.insert(0, sale);
+                                        for (final line in cartItems) {
+                                          line.product.stock -= line.qty;
+                                        }
+                                        _cart.clear();
+                                      });
+                                      await _persistWorkspaceData();
+
+                                      if (_saleRepository != null) {
+                                        await _saleRepository!.insertSale(
+                                          _toDomainSale(sale, cartItems),
+                                        );
+                                        await _refreshPendingSyncQueue();
+                                        await _triggerRealtimeSync(
+                                          action: 'INSERT',
+                                          module: 'sales',
+                                          reference: sale.id,
+                                        );
+                                      } else {
+                                        await _enqueueSync(
+                                          'INSERT',
+                                          'sales',
+                                          sale.id,
+                                        );
+                                      }
+
+                                      await _printReceipt(
+                                        sale: sale,
+                                        lines: cartItems,
+                                      );
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Sale completed: ${sale.id}',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFC980D9),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              child: const Text(
+                                'Complete Sale',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _posPaymentButton(String key, String label, String selected) {
+    final isSelected = key == selected;
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: () => setState(() => _paymentMethodController.text = key),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: isSelected
+              ? const Color(0xFFF4DDF8)
+              : const Color(0xFFF2ECFA),
+          foregroundColor: const Color(0xFF6B3E8F),
+          side: BorderSide(
+            color: isSelected
+                ? const Color(0xFFB227D6)
+                : const Color(0xFFE4DDF1),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -2450,191 +3572,280 @@ class _DashboardScreenState extends State<DashboardScreen> {
           p.barcode.toLowerCase().contains(q);
     }).toList();
 
-    return _moduleCard(
-      title: 'Product Management',
-      action: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          OutlinedButton.icon(
-            onPressed: _canManageCatalog ? _manageCategories : null,
-            icon: const Icon(Icons.category_outlined),
-            label: const Text('Categories'),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _canManageCatalog
-                ? () async {
-                    final item = await _showProductDialog();
-                    if (item == null) return;
-                    setState(() {
-                      _products.add(item);
-                      if (!_productCategories.any(
-                        (c) => c.toLowerCase() == item.category.toLowerCase(),
-                      )) {
-                        _productCategories.add(item.category);
-                      }
-                    });
-                    await _persistWorkspaceData();
-
-                    if (_productRepository != null) {
-                      await _productRepository!.insertProduct(
-                        _toDomainProduct(item),
-                      );
-                      await _refreshPendingSyncQueue();
-                      await _triggerRealtimeSync(
-                        action: 'INSERT',
-                        module: 'products',
-                        reference: item.id,
-                      );
-                    } else {
-                      await _enqueueSync('INSERT', 'products', item.id);
-                    }
-                  }
-                : null,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Product'),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _productSearchController,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Search products',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+          const Text(
+            'Products',
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Manage your inventory and product catalog.',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE4E1EF)),
+            ),
+            child: TextField(
+              controller: _productSearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search products...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 460,
-            child: ListView.separated(
-              itemCount: filtered.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final p = filtered[index];
-                return ListTile(
-                  title: Text('${p.name} (${p.id})'),
-                  subtitle: Text(
-                    '${p.category} • Barcode ${p.barcode} • Stock ${p.stock} • Min ${p.minStock}',
-                  ),
-                  trailing: Wrap(
-                    spacing: 4,
-                    children: [
-                      IconButton(
-                        onPressed: () => _printProductBarcode(p),
-                        icon: const Icon(Icons.qr_code_2_outlined),
-                        tooltip: 'Print Barcode Label',
-                      ),
-                      IconButton(
-                        onPressed: _canManageCatalog
-                            ? () async {
-                                final nextStock = await _showAdjustStockDialog(
-                                  p,
-                                );
-                                if (nextStock == null) return;
-                                setState(() {
-                                  p.stock = nextStock;
-                                });
-                                await _persistWorkspaceData();
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Products (${filtered.length})',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: _canManageCatalog
+                              ? () => setState(
+                                  () => _selectedNavKey = 'categories',
+                                )
+                              : null,
+                          icon: const Icon(Icons.category_outlined),
+                          label: const Text('Categories'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: _canManageCatalog
+                              ? () async {
+                                  final item = await _showProductDialog();
+                                  if (item == null) return;
+                                  setState(() {
+                                    _products.add(item);
+                                    if (!_productCategories.any(
+                                      (c) =>
+                                          c.toLowerCase() ==
+                                          item.category.toLowerCase(),
+                                    )) {
+                                      _productCategories.add(item.category);
+                                    }
+                                  });
+                                  await _persistWorkspaceData();
 
-                                if (_productRepository != null) {
-                                  await _productRepository!.updateProduct(
-                                    _toDomainProduct(p),
-                                  );
-                                  await _refreshPendingSyncQueue();
-                                  await _triggerRealtimeSync(
-                                    action: 'UPDATE',
-                                    module: 'products',
-                                    reference: p.id,
-                                  );
-                                } else {
-                                  await _enqueueSync(
-                                    'UPDATE',
-                                    'products',
-                                    p.id,
-                                  );
-                                }
-                              }
-                            : null,
-                        icon: const Icon(Icons.inventory_2_outlined),
-                      ),
-                      IconButton(
-                        onPressed: _canManageCatalog
-                            ? () async {
-                                final edited = await _showProductDialog(
-                                  existing: p,
-                                );
-                                if (edited == null) return;
-                                setState(() {
-                                  final i = _products.indexWhere(
-                                    (x) => x.id == p.id,
-                                  );
-                                  _products[i] = edited;
-                                  if (!_productCategories.any(
-                                    (c) =>
-                                        c.toLowerCase() ==
-                                        edited.category.toLowerCase(),
-                                  )) {
-                                    _productCategories.add(edited.category);
+                                  if (_productRepository != null) {
+                                    await _productRepository!.insertProduct(
+                                      _toDomainProduct(item),
+                                    );
+                                    await _refreshPendingSyncQueue();
+                                    await _triggerRealtimeSync(
+                                      action: 'INSERT',
+                                      module: 'products',
+                                      reference: item.id,
+                                    );
+                                  } else {
+                                    await _enqueueSync(
+                                      'INSERT',
+                                      'products',
+                                      item.id,
+                                    );
                                   }
-                                });
-                                await _persistWorkspaceData();
-
-                                if (_productRepository != null) {
-                                  await _productRepository!.updateProduct(
-                                    _toDomainProduct(edited),
-                                  );
-                                  await _refreshPendingSyncQueue();
-                                  await _triggerRealtimeSync(
-                                    action: 'UPDATE',
-                                    module: 'products',
-                                    reference: edited.id,
-                                  );
-                                } else {
-                                  await _enqueueSync(
-                                    'UPDATE',
-                                    'products',
-                                    edited.id,
-                                  );
                                 }
-                              }
-                            : null,
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                      IconButton(
-                        onPressed: _canManageCatalog
-                            ? () async {
-                                setState(() {
-                                  _products.removeWhere((x) => x.id == p.id);
-                                });
-                                await _persistWorkspaceData();
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFB227D6),
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add New Product'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(
+                            const Color(0xFFF5F2FB),
+                          ),
+                          columnSpacing: 22,
+                          columns: const [
+                            DataColumn(label: Text('PRODUCT')),
+                            DataColumn(label: Text('SKU')),
+                            DataColumn(label: Text('TYPE')),
+                            DataColumn(label: Text('CATEGORY')),
+                            DataColumn(label: Text('PRICE')),
+                            DataColumn(label: Text('ACTIONS')),
+                          ],
+                          rows: filtered.map((p) {
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        p.barcode,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7E8495),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(Text(p.id)),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF3E8FA),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text('Unit'),
+                                  ),
+                                ),
+                                DataCell(Text(p.category)),
+                                DataCell(Text(_money(p.price))),
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        onPressed: () =>
+                                            _printProductBarcode(p),
+                                        icon: const Icon(
+                                          Icons.qr_code_2_outlined,
+                                        ),
+                                        tooltip: 'Print Barcode Label',
+                                      ),
+                                      IconButton(
+                                        onPressed: _canManageCatalog
+                                            ? () async {
+                                                final edited =
+                                                    await _showProductDialog(
+                                                      existing: p,
+                                                    );
+                                                if (edited == null) return;
+                                                setState(() {
+                                                  final i = _products
+                                                      .indexWhere(
+                                                        (x) => x.id == p.id,
+                                                      );
+                                                  _products[i] = edited;
+                                                  if (!_productCategories.any(
+                                                    (c) =>
+                                                        c.toLowerCase() ==
+                                                        edited.category
+                                                            .toLowerCase(),
+                                                  )) {
+                                                    _productCategories.add(
+                                                      edited.category,
+                                                    );
+                                                  }
+                                                });
+                                                await _persistWorkspaceData();
 
-                                if (_productRepository != null) {
-                                  await _productRepository!.deleteProduct(p.id);
-                                  await _refreshPendingSyncQueue();
-                                  await _triggerRealtimeSync(
-                                    action: 'DELETE',
-                                    module: 'products',
-                                    reference: p.id,
-                                  );
-                                } else {
-                                  await _enqueueSync(
-                                    'DELETE',
-                                    'products',
-                                    p.id,
-                                  );
-                                }
-                              }
-                            : null,
-                        icon: const Icon(Icons.delete_outline),
+                                                if (_productRepository !=
+                                                    null) {
+                                                  await _productRepository!
+                                                      .updateProduct(
+                                                        _toDomainProduct(
+                                                          edited,
+                                                        ),
+                                                      );
+                                                  await _refreshPendingSyncQueue();
+                                                  await _triggerRealtimeSync(
+                                                    action: 'UPDATE',
+                                                    module: 'products',
+                                                    reference: edited.id,
+                                                  );
+                                                } else {
+                                                  await _enqueueSync(
+                                                    'UPDATE',
+                                                    'products',
+                                                    edited.id,
+                                                  );
+                                                }
+                                              }
+                                            : null,
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        onPressed: _canManageCatalog
+                                            ? () async {
+                                                setState(() {
+                                                  _products.removeWhere(
+                                                    (x) => x.id == p.id,
+                                                  );
+                                                });
+                                                await _persistWorkspaceData();
+
+                                                if (_productRepository !=
+                                                    null) {
+                                                  await _productRepository!
+                                                      .deleteProduct(p.id);
+                                                  await _refreshPendingSyncQueue();
+                                                  await _triggerRealtimeSync(
+                                                    action: 'DELETE',
+                                                    module: 'products',
+                                                    reference: p.id,
+                                                  );
+                                                } else {
+                                                  await _enqueueSync(
+                                                    'DELETE',
+                                                    'products',
+                                                    p.id,
+                                                  );
+                                                }
+                                              }
+                                            : null,
+                                        icon: const Icon(Icons.delete_outline),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -2662,157 +3873,360 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return true;
     }).toList();
 
-    return _moduleCard(
-      title: 'Sales Processing',
-      action: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          OutlinedButton.icon(
-            onPressed: () => _exportSalesCsv(filtered),
-            icon: const Icon(Icons.download),
-            label: const Text('Export CSV'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-          ),
-        ],
-      ),
+    final totalRevenue = filtered.fold<double>(0, (sum, s) => sum + s.total);
+    final productRevenue = filtered.fold<double>(
+      0,
+      (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? 0 : s.total),
+    );
+    final serviceRevenue = filtered.fold<double>(
+      0,
+      (sum, s) => sum + (s.paymentMethod == 'SERVICE' ? s.total : 0),
+    );
+    final avgOrder = filtered.isEmpty ? 0.0 : totalRevenue / filtered.length;
+    final itemCount = filtered.length;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _salesSearchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    hintText: 'Search sales by ID/customer/payment',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sales Management',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'View and analyze sales transactions.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              DropdownButton<String>(
-                value: _salesFilterStatus,
-                items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('All Status')),
-                  DropdownMenuItem(
-                    value: 'COMPLETED',
-                    child: Text('Completed'),
-                  ),
-                  DropdownMenuItem(value: 'RETURNED', child: Text('Returned')),
-                  DropdownMenuItem(
-                    value: 'CANCELLED',
-                    child: Text('Cancelled'),
-                  ),
-                ],
-                onChanged: (v) =>
-                    setState(() => _salesFilterStatus = v ?? 'ALL'),
+              OutlinedButton.icon(
+                onPressed: () => _exportSalesCsv(filtered),
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Export Data'),
               ),
-              const SizedBox(width: 12),
-              DropdownButton<String>(
-                value: _salesFilterPayment,
-                items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('All Payments')),
-                  DropdownMenuItem(value: 'CASH', child: Text('Cash')),
-                  DropdownMenuItem(value: 'CARD', child: Text('Card')),
-                  DropdownMenuItem(value: 'CHEQUE', child: Text('Cheque')),
-                  DropdownMenuItem(
-                    value: 'INSTALLMENT',
-                    child: Text('Installment'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 220,
+                        child: _salesSummaryCard(
+                          'Total Sales',
+                          '${filtered.length}',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 240,
+                        child: _salesSummaryCard(
+                          'Total Revenue',
+                          _money(totalRevenue),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 250,
+                        child: _salesSummaryCard(
+                          'Product Revenue',
+                          _money(productRevenue),
+                          subtitle: '$itemCount items sold',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 250,
+                        child: _salesSummaryCard(
+                          'Service Revenue',
+                          _money(serviceRevenue),
+                          subtitle:
+                              '${filtered.where((s) => s.paymentMethod == 'SERVICE').length} services',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 230,
+                        child: _salesSummaryCard(
+                          'Avg Order Value',
+                          _money(avgOrder),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-                onChanged: (v) =>
-                    setState(() => _salesFilterPayment = v ?? 'ALL'),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 400,
-            child: filtered.isEmpty
-                ? const Center(
-                    child: Text('No sales match the current filters.'),
-                  )
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final sale = filtered[index];
-                      return Card(
-                        child: ListTile(
-                          onTap: () => _showSaleDetails(sale),
-                          title: Text('${sale.id} • ${_money(sale.total)}'),
-                          subtitle: Text(
-                            '${sale.customerName} • ${sale.paymentMethod} • ${sale.createdAt.toLocal()}${sale.returnReason != null ? ' • Reason: ${sale.returnReason}' : ''}',
-                          ),
-                          trailing: DropdownButton<String>(
-                            value: sale.status,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'COMPLETED',
-                                child: Text('COMPLETED'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'RETURNED',
-                                child: Text('RETURNED'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'CANCELLED',
-                                child: Text('CANCELLED'),
-                              ),
-                            ],
-                            onChanged: _canChangeSalesStatus
-                                ? (v) async {
-                                    if (v == null) return;
-                                    if (sale.status == v) return;
-
-                                    String? reason;
-                                    if (v == 'RETURNED') {
-                                      reason = await _showReturnReasonDialog();
-                                      if (reason == null || reason.isEmpty)
-                                        return;
-                                    }
-
-                                    setState(() {
-                                      sale.status = v;
-                                      sale.returnReason = v == 'RETURNED'
-                                          ? reason
-                                          : null;
-                                    });
-                                    await _persistWorkspaceData();
-
-                                    if (_saleRepository != null) {
-                                      await _saleRepository!.updateSaleStatus(
-                                        saleId: sale.id,
-                                        status: sale.status,
-                                      );
-                                      await _refreshPendingSyncQueue();
-                                      await _triggerRealtimeSync(
-                                        action: 'UPDATE',
-                                        module: 'sales',
-                                        reference: sale.id,
-                                      );
-                                    } else {
-                                      await _enqueueSync(
-                                        'UPDATE',
-                                        'sales',
-                                        sale.id,
-                                      );
-                                    }
-                                  }
-                                : null,
-                          ),
-                        ),
-                      );
-                    },
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 360,
+                    child: TextField(
+                      controller: _salesSearchController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        hintText: 'Search sales, customers...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 170,
+                    child: _salesFilterDropdown(
+                      value: _salesCashierFilter,
+                      items: const ['All Cashiers'],
+                      onChanged: (v) => setState(() => _salesCashierFilter = v),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 180,
+                    child: _salesFilterDropdown(
+                      value: _salesCustomerFilter,
+                      items: const ['All Customers'],
+                      onChanged: (v) =>
+                          setState(() => _salesCustomerFilter = v),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 200,
+                    child: _salesFilterDropdown(
+                      value: _salesFilterPayment,
+                      items: const [
+                        'ALL',
+                        'CASH',
+                        'CARD',
+                        'CHEQUE',
+                        'INSTALLMENT',
+                        'SERVICE',
+                      ],
+                      onChanged: (v) => setState(() => _salesFilterPayment = v),
+                      labelMapper: (v) =>
+                          v == 'ALL' ? 'All Payment Methods' : v,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 160,
+                    child: _salesFilterDropdown(
+                      value: _salesItemsFilter,
+                      items: const ['All Items'],
+                      onChanged: (v) => setState(() => _salesItemsFilter = v),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 160,
+                    child: _salesFilterDropdown(
+                      value: _salesTimeFilter,
+                      items: const [
+                        'All Time',
+                        'Today',
+                        'This Week',
+                        'This Month',
+                      ],
+                      onChanged: (v) => setState(() => _salesTimeFilter = v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sales Records (${filtered.length})',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No sales records found for selected filters.',
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('RECEIPT #')),
+                                  DataColumn(label: Text('DATE & TIME')),
+                                  DataColumn(label: Text('CASHIER')),
+                                  DataColumn(label: Text('CUSTOMER')),
+                                  DataColumn(label: Text('ITEMS')),
+                                  DataColumn(label: Text('TOTAL')),
+                                  DataColumn(label: Text('PAYMENT')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: filtered.map((sale) {
+                                  return DataRow(
+                                    onSelectChanged: (_) =>
+                                        _showSaleDetails(sale),
+                                    cells: [
+                                      DataCell(Text(sale.id)),
+                                      DataCell(
+                                        Text(
+                                          '${sale.createdAt.month}/${sale.createdAt.day}/${sale.createdAt.year}, ${sale.createdAt.hour.toString().padLeft(2, '0')}:${sale.createdAt.minute.toString().padLeft(2, '0')} ${sale.createdAt.hour >= 12 ? 'PM' : 'AM'}',
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Text(
+                                          _users.isNotEmpty
+                                              ? _users.first.name
+                                              : 'Cashier',
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Text(
+                                          sale.customerName.isEmpty
+                                              ? 'Walk-in'
+                                              : sale.customerName,
+                                        ),
+                                      ),
+                                      DataCell(const Text('1 Items')),
+                                      DataCell(Text(_money(sale.total))),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE8F7EC),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            sale.paymentMethod.toLowerCase(),
+                                            style: const TextStyle(
+                                              color: Color(0xFF2E9C64),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        IconButton(
+                                          onPressed: () =>
+                                              _showSaleDetails(sale),
+                                          icon: const Icon(
+                                            Icons.visibility_outlined,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _salesSummaryCard(String title, String value, {String subtitle = ''}) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFFE6E2EF)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(color: Color(0xFF6D7383))),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(subtitle, style: const TextStyle(color: Color(0xFF8A90A2))),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _salesFilterDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String> onChanged,
+    String Function(String)? labelMapper,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      items: items
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(labelMapper == null ? item : labelMapper(item)),
+            ),
+          )
+          .toList(),
+      onChanged: (v) {
+        if (v == null) return;
+        onChanged(v);
+      },
+      decoration: const InputDecoration(border: OutlineInputBorder()),
     );
   }
 
@@ -2821,159 +4235,268 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final filtered = _customers.where((c) {
       if (query.isEmpty) return true;
       return c.name.toLowerCase().contains(query) ||
+          c.vehicleNumber.toLowerCase().contains(query) ||
           c.phone.toLowerCase().contains(query) ||
           c.email.toLowerCase().contains(query);
     }).toList();
 
-    return _moduleCard(
-      title: 'Customer Management',
-      action: ElevatedButton.icon(
-        onPressed: _canManageCatalog
-            ? () async {
-                final customer = await _showCustomerDialog();
-                if (customer == null) return;
-                setState(() {
-                  _customers.add(customer);
-                });
-                await _persistWorkspaceData();
-
-                if (_customerRepository != null) {
-                  await _customerRepository!.insertCustomer(
-                    _toDomainCustomer(customer),
-                  );
-                  await _refreshPendingSyncQueue();
-                  await _triggerRealtimeSync(
-                    action: 'INSERT',
-                    module: 'customers',
-                    reference: customer.id,
-                  );
-                } else {
-                  await _enqueueSync('INSERT', 'customers', customer.id);
-                }
-              }
-            : null,
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Add Customer'),
-      ),
+    return Padding(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _customerSearchController,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Search customer by name/phone/email',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Management',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage customer information and vehicle details.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _canManageCatalog
+                    ? () async {
+                        final customer = await _showCustomerDialog();
+                        if (customer == null) return;
+                        setState(() => _customers.add(customer));
+                        await _persistWorkspaceData();
+
+                        if (_customerRepository != null) {
+                          await _customerRepository!.insertCustomer(
+                            _toDomainCustomer(customer),
+                          );
+                          await _refreshPendingSyncQueue();
+                          await _triggerRealtimeSync(
+                            action: 'INSERT',
+                            module: 'customers',
+                            reference: customer.id,
+                          );
+                        } else {
+                          await _enqueueSync(
+                            'INSERT',
+                            'customers',
+                            customer.id,
+                          );
+                        }
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Customer'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: TextField(
+              controller: _customerSearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText:
+                    'Search customers by name, vehicle number, or phone...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 460,
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final c = filtered[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(c.name),
-                    subtitle: Text(
-                      '${c.phone} • ${c.email.isEmpty ? 'No email' : c.email}\n'
-                      'Credit: ${_money(c.currentBalance)} / ${_money(c.creditLimit)} • '
-                      'Points: ${c.loyaltyPoints}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Wrap(
-                      spacing: 4,
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        IconButton(
-                          onPressed: _canManageCatalog
-                              ? () async {
-                                  final edited = await _showCustomerDialog(
-                                    existing: c,
-                                  );
-                                  if (edited == null) return;
-                                  setState(() {
-                                    final i = _customers.indexWhere(
-                                      (x) => x.id == c.id,
-                                    );
-                                    _customers[i] = edited;
-                                    if (edited.id != c.id) {
-                                      final history = _customerCreditPayments
-                                          .remove(c.id);
-                                      if (history != null) {
-                                        _customerCreditPayments[edited.id] =
-                                            history;
-                                      }
-                                    }
-                                  });
-                                  await _persistWorkspaceData();
-
-                                  if (_customerRepository != null) {
-                                    await _customerRepository!.updateCustomer(
-                                      _toDomainCustomer(edited),
-                                    );
-                                    await _refreshPendingSyncQueue();
-                                    await _triggerRealtimeSync(
-                                      action: 'UPDATE',
-                                      module: 'customers',
-                                      reference: edited.id,
-                                    );
-                                  } else {
-                                    await _enqueueSync(
-                                      'UPDATE',
-                                      'customers',
-                                      edited.id,
-                                    );
-                                  }
-                                }
-                              : null,
-                          icon: const Icon(Icons.edit_outlined),
-                        ),
-                        IconButton(
-                          onPressed: _canManageCatalog
-                              ? () async {
-                                  setState(() {
-                                    _customers.removeWhere((x) => x.id == c.id);
-                                    _customerCreditPayments.remove(c.id);
-                                  });
-                                  await _persistWorkspaceData();
-
-                                  if (_customerRepository != null) {
-                                    await _customerRepository!.deleteCustomer(
-                                      c.id,
-                                    );
-                                    await _refreshPendingSyncQueue();
-                                    await _triggerRealtimeSync(
-                                      action: 'DELETE',
-                                      module: 'customers',
-                                      reference: c.id,
-                                    );
-                                  } else {
-                                    await _enqueueSync(
-                                      'DELETE',
-                                      'customers',
-                                      c.id,
-                                    );
-                                  }
-                                }
-                              : null,
-                          icon: const Icon(Icons.delete_outline),
-                        ),
-                        IconButton(
-                          onPressed: () => _recordCustomerCreditPayment(c),
-                          icon: const Icon(Icons.payments_outlined),
-                          tooltip: 'Record Credit Payment',
-                        ),
-                        IconButton(
-                          onPressed: () => _showCustomerCreditHistory(c),
-                          icon: const Icon(Icons.history),
-                          tooltip: 'Credit History',
+                        const Icon(Icons.groups_outlined),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Customers (${filtered.length})',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.groups_outlined,
+                                    size: 56,
+                                    color: Color(0xFFB7A9D0),
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No customers found. Add your first customer to get started.',
+                                    style: TextStyle(
+                                      color: Color(0xFF6F7690),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('CUSTOMER')),
+                                  DataColumn(label: Text('VEHICLE NO')),
+                                  DataColumn(label: Text('PHONE')),
+                                  DataColumn(label: Text('EMAIL')),
+                                  DataColumn(label: Text('CREDIT LIMIT')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: filtered.map((c) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(c.name)),
+                                      DataCell(
+                                        Text(
+                                          c.vehicleNumber.isEmpty
+                                              ? 'N/A'
+                                              : c.vehicleNumber,
+                                        ),
+                                      ),
+                                      DataCell(Text(c.phone)),
+                                      DataCell(
+                                        Text(c.email.isEmpty ? 'N/A' : c.email),
+                                      ),
+                                      DataCell(Text(_money(c.creditLimit))),
+                                      DataCell(
+                                        Row(
+                                          children: [
+                                            IconButton(
+                                              onPressed: _canManageCatalog
+                                                  ? () async {
+                                                      final edited =
+                                                          await _showCustomerDialog(
+                                                            existing: c,
+                                                          );
+                                                      if (edited == null)
+                                                        return;
+                                                      setState(() {
+                                                        final i = _customers
+                                                            .indexWhere(
+                                                              (x) =>
+                                                                  x.id == c.id,
+                                                            );
+                                                        _customers[i] = edited;
+                                                      });
+                                                      await _persistWorkspaceData();
+
+                                                      if (_customerRepository !=
+                                                          null) {
+                                                        await _customerRepository!
+                                                            .updateCustomer(
+                                                              _toDomainCustomer(
+                                                                edited,
+                                                              ),
+                                                            );
+                                                        await _refreshPendingSyncQueue();
+                                                        await _triggerRealtimeSync(
+                                                          action: 'UPDATE',
+                                                          module: 'customers',
+                                                          reference: edited.id,
+                                                        );
+                                                      } else {
+                                                        await _enqueueSync(
+                                                          'UPDATE',
+                                                          'customers',
+                                                          edited.id,
+                                                        );
+                                                      }
+                                                    }
+                                                  : null,
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: _canManageCatalog
+                                                  ? () async {
+                                                      setState(() {
+                                                        _customers.removeWhere(
+                                                          (x) => x.id == c.id,
+                                                        );
+                                                        _customerCreditPayments
+                                                            .remove(c.id);
+                                                      });
+                                                      await _persistWorkspaceData();
+
+                                                      if (_customerRepository !=
+                                                          null) {
+                                                        await _customerRepository!
+                                                            .deleteCustomer(
+                                                              c.id,
+                                                            );
+                                                        await _refreshPendingSyncQueue();
+                                                        await _triggerRealtimeSync(
+                                                          action: 'DELETE',
+                                                          module: 'customers',
+                                                          reference: c.id,
+                                                        );
+                                                      } else {
+                                                        await _enqueueSync(
+                                                          'DELETE',
+                                                          'customers',
+                                                          c.id,
+                                                        );
+                                                      }
+                                                    }
+                                                  : null,
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -3081,234 +4604,1525 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildEmployeesPage() {
-    return _moduleCard(
-      title: 'Employee Management',
-      action: ElevatedButton.icon(
-        onPressed: _canManageEmployees
-            ? () async {
-                final employee = await _showEmployeeDialog();
-                if (employee == null) return;
-                setState(() {
-                  _employees.add(employee);
-                  _enqueueSync('INSERT', 'employees', employee.id);
-                });
-              }
-            : null,
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Add Employee'),
-      ),
-      child: SizedBox(
-        height: 520,
-        child: ListView.builder(
-          itemCount: _employees.length,
-          itemBuilder: (context, index) {
-            final e = _employees[index];
-            return Card(
-              child: ListTile(
-                title: Text('${e.name} (${e.id})'),
-                subtitle: Text('Role ${e.role}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+    final query = _employeeSearchController.text.trim().toLowerCase();
+    final filtered = _employees.where((e) {
+      if (query.isEmpty) return true;
+      return e.name.toLowerCase().contains(query) ||
+          e.email.toLowerCase().contains(query) ||
+          e.phone.toLowerCase().contains(query) ||
+          e.position.toLowerCase().contains(query);
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Switch(
-                      value: e.active,
-                      onChanged: _canManageEmployees
-                          ? (v) {
-                              setState(() {
-                                e.active = v;
-                                _enqueueSync('UPDATE', 'employees', e.id);
-                              });
-                            }
-                          : null,
+                    Text(
+                      'Employees',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    IconButton(
-                      onPressed: _canManageEmployees
-                          ? () async {
-                              final edited = await _showEmployeeDialog(
-                                existing: e,
-                              );
-                              if (edited == null) return;
-                              setState(() {
-                                final i = _employees.indexWhere(
-                                  (x) => x.id == e.id,
-                                );
-                                _employees[i] = edited;
-                                _enqueueSync('UPDATE', 'employees', edited.id);
-                              });
-                            }
-                          : null,
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      onPressed: _canManageEmployees
-                          ? () {
-                              setState(() {
-                                _employees.removeWhere((x) => x.id == e.id);
-                                _enqueueSync('DELETE', 'employees', e.id);
-                              });
-                            }
-                          : null,
-                      icon: const Icon(Icons.delete_outline),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage your employee records and information.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+              ElevatedButton.icon(
+                onPressed: _canManageEmployees
+                    ? () async {
+                        final employee = await _showEmployeeDialog();
+                        if (employee == null) return;
+                        setState(() => _employees.add(employee));
+                        await _persistWorkspaceData();
+                        await _enqueueSync('INSERT', 'employees', employee.id);
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Employee'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: TextField(
+              controller: _employeeSearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search employees...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No employees found matching your criteria.',
+                        style: TextStyle(
+                          color: Color(0xFF7A8093),
+                          fontSize: 20,
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          const Color(0xFFF5F2FB),
+                        ),
+                        columns: const [
+                          DataColumn(label: Text('EMPLOYEE')),
+                          DataColumn(label: Text('EMAIL')),
+                          DataColumn(label: Text('POSITION')),
+                          DataColumn(label: Text('DEPARTMENT')),
+                          DataColumn(label: Text('PAYMENT TYPE')),
+                          DataColumn(label: Text('SALARY')),
+                          DataColumn(label: Text('STATUS')),
+                          DataColumn(label: Text('ACTIONS')),
+                        ],
+                        rows: filtered.map((e) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(e.name)),
+                              DataCell(Text(e.email.isEmpty ? 'N/A' : e.email)),
+                              DataCell(
+                                Text(e.position.isEmpty ? e.role : e.position),
+                              ),
+                              DataCell(
+                                Text(
+                                  e.department.isEmpty ? 'N/A' : e.department,
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  e.paymentType.isEmpty
+                                      ? 'Monthly'
+                                      : e.paymentType,
+                                ),
+                              ),
+                              DataCell(Text(_money(e.baseSalary))),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: e.active
+                                        ? const Color(0xFFD9F3E1)
+                                        : const Color(0xFFF0F1F5),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    e.active ? 'Active' : 'Inactive',
+                                    style: TextStyle(
+                                      color: e.active
+                                          ? const Color(0xFF19713F)
+                                          : const Color(0xFF667085),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                IconButton(
+                                  onPressed: _canManageEmployees
+                                      ? () async {
+                                          final edited =
+                                              await _showEmployeeDialog(
+                                                existing: e,
+                                              );
+                                          if (edited == null) return;
+                                          setState(() {
+                                            final i = _employees.indexWhere(
+                                              (x) => x.id == e.id,
+                                            );
+                                            _employees[i] = edited;
+                                          });
+                                          await _persistWorkspaceData();
+                                          await _enqueueSync(
+                                            'UPDATE',
+                                            'employees',
+                                            edited.id,
+                                          );
+                                        }
+                                      : null,
+                                  icon: const Icon(Icons.edit_outlined),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreditManagementPage() {
+    final query = _customerSearchController.text.trim().toLowerCase();
+    final customersWithCredit = _customers
+        .where((c) => c.currentBalance > 0)
+        .where((c) {
+          if (query.isEmpty) return true;
+          return c.name.toLowerCase().contains(query) ||
+              c.phone.toLowerCase().contains(query) ||
+              c.vehicleNumber.toLowerCase().contains(query);
+        })
+        .toList();
+
+    final totalOutstanding = customersWithCredit.fold<double>(
+      0,
+      (sum, c) => sum + c.currentBalance,
+    );
+    final overdueCustomers = 0;
+    final overCreditLimit = customersWithCredit
+        .where((c) => c.creditLimit > 0 && c.currentBalance > c.creditLimit)
+        .length;
+
+    Widget metricCard({
+      required IconData icon,
+      required Color iconColor,
+      required Color iconBg,
+      required String title,
+      required String value,
+    }) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE6E2EF)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: Color(0xFF707793))),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Credit Management',
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Manage customer credit and payment tracking',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              metricCard(
+                icon: Icons.credit_card,
+                iconColor: const Color(0xFFB227D6),
+                iconBg: const Color(0xFFF4E8FA),
+                title: 'Total Outstanding',
+                value: _money(totalOutstanding),
+              ),
+              const SizedBox(width: 12),
+              metricCard(
+                icon: Icons.attach_money,
+                iconColor: const Color(0xFF1DAA65),
+                iconBg: const Color(0xFFE6F7EE),
+                title: 'Customers with Credit',
+                value: '${customersWithCredit.length}',
+              ),
+              const SizedBox(width: 12),
+              metricCard(
+                icon: Icons.schedule,
+                iconColor: const Color(0xFFF59A23),
+                iconBg: const Color(0xFFFFF4DD),
+                title: 'Overdue Customers',
+                value: '$overdueCustomers',
+              ),
+              const SizedBox(width: 12),
+              metricCard(
+                icon: Icons.cancel_outlined,
+                iconColor: const Color(0xFFE35D5D),
+                iconBg: const Color(0xFFFCECED),
+                title: 'Over Credit Limit',
+                value: '$overCreditLimit',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: TextField(
+              controller: _customerSearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search customers...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.credit_card, color: Color(0xFF51556B)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Customers with Credit (${customersWithCredit.length})',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: customersWithCredit.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.credit_card,
+                                    size: 54,
+                                    color: Color(0xFFB7A9D0),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'No customers found',
+                                    style: TextStyle(
+                                      color: Color(0xFF6F7690),
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('CUSTOMER')),
+                                  DataColumn(label: Text('PHONE')),
+                                  DataColumn(label: Text('OUTSTANDING')),
+                                  DataColumn(label: Text('LIMIT')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: customersWithCredit.map((c) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(c.name)),
+                                      DataCell(Text(c.phone)),
+                                      DataCell(Text(_money(c.currentBalance))),
+                                      DataCell(Text(_money(c.creditLimit))),
+                                      DataCell(
+                                        Row(
+                                          children: [
+                                            OutlinedButton(
+                                              onPressed: () =>
+                                                  _recordCustomerCreditPayment(
+                                                    c,
+                                                  ),
+                                              child: const Text(
+                                                'Record Payment',
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              onPressed: () =>
+                                                  _showCustomerCreditHistory(c),
+                                              icon: const Icon(Icons.history),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatMonthLabel(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  String _monthKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Widget _buildAttendancePage() {
+    final visible = _attendanceRecords.where((r) {
+      if (r.date.year != _attendanceMonth.year ||
+          r.date.month != _attendanceMonth.month) {
+        return false;
+      }
+      final q = _attendanceSearchController.text.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return r.employeeName.toLowerCase().contains(q) ||
+          r.status.toLowerCase().contains(q);
+    }).toList();
+
+    final today = DateTime.now();
+    final presentToday = visible
+        .where(
+          (r) =>
+              r.date.year == today.year &&
+              r.date.month == today.month &&
+              r.date.day == today.day &&
+              r.status == 'Present',
+        )
+        .length;
+    final absentToday = visible
+        .where(
+          (r) =>
+              r.date.year == today.year &&
+              r.date.month == today.month &&
+              r.date.day == today.day &&
+              r.status == 'Absent',
+        )
+        .length;
+    final totalHours = visible.fold<double>(
+      0,
+      (sum, r) => sum + r.regularHours + r.overtimeHours,
+    );
+
+    Widget stat(String label, String value, Color valueColor) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE6E2EF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Color(0xFF8B92A7))),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attendance Management',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Track employee attendance and working hours.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _monthKey(_attendanceMonth),
+                  items: List.generate(12, (i) {
+                    final month = DateTime(today.year, i + 1, 1);
+                    final key = _monthKey(month);
+                    return DropdownMenuItem(
+                      value: key,
+                      child: Text(_formatMonthLabel(month)),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    final parts = value.split('-');
+                    if (parts.length != 2) return;
+                    setState(
+                      () => _attendanceMonth = DateTime(
+                        int.tryParse(parts[0]) ?? today.year,
+                        int.tryParse(parts[1]) ?? today.month,
+                        1,
+                      ),
+                    );
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final record = await _showAttendanceDialog();
+                  if (record == null) return;
+                  setState(() => _attendanceRecords.insert(0, record));
+                  await _persistWorkspaceData();
+                  await _enqueueSync('INSERT', 'attendance', record.id);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Attendance'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.watch_later_outlined),
+                SizedBox(width: 8),
+                Text(
+                  "Today's Quick Actions",
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              stat(
+                'Total Records',
+                '${visible.length}',
+                const Color(0xFF1D2439),
+              ),
+              const SizedBox(width: 12),
+              stat('Present Today', '$presentToday', const Color(0xFF0A9F5A)),
+              const SizedBox(width: 12),
+              stat('Absent Today', '$absentToday', const Color(0xFFE53935)),
+              const SizedBox(width: 12),
+              stat(
+                'Total Hours',
+                totalHours.toStringAsFixed(1),
+                const Color(0xFFB227D6),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attendance Records (${visible.length})',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: visible.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No attendance records found for ${_monthKey(_attendanceMonth)}.',
+                                style: const TextStyle(
+                                  color: Color(0xFF6F7690),
+                                  fontSize: 18,
+                                ),
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('EMPLOYEE')),
+                                  DataColumn(label: Text('DATE')),
+                                  DataColumn(label: Text('CLOCK IN/OUT')),
+                                  DataColumn(label: Text('HOURS')),
+                                  DataColumn(label: Text('STATUS')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: visible.map((r) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(r.employeeName)),
+                                      DataCell(Text(_formatDate(r.date))),
+                                      DataCell(
+                                        Text('${r.clockIn} - ${r.clockOut}'),
+                                      ),
+                                      DataCell(
+                                        Text(
+                                          (r.regularHours + r.overtimeHours)
+                                              .toStringAsFixed(1),
+                                        ),
+                                      ),
+                                      DataCell(Text(r.status)),
+                                      DataCell(
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _attendanceRecords.removeWhere(
+                                                (x) => x.id == r.id,
+                                              );
+                                            });
+                                            _enqueueSync(
+                                              'DELETE',
+                                              'attendance',
+                                              r.id,
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPayrollPage() {
+    final totalRecords = _payrollRecords.length;
+    final pendingRecords = _payrollRecords
+        .where((r) => r.status == 'Pending')
+        .length;
+    final pendingAmount = _payrollRecords
+        .where((r) => r.status == 'Pending')
+        .fold<double>(0, (sum, r) => sum + r.netPay);
+    final totalPaid = _payrollRecords
+        .where((r) => r.status == 'Paid')
+        .fold<double>(0, (sum, r) => sum + r.netPay);
+
+    Widget stat(String label, String value, Color valueColor) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE6E2EF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Color(0xFF8B92A7))),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  color: valueColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payroll Management',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage employee payroll and compensation.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Monthly payroll generated')),
+                  );
+                },
+                icon: const Icon(Icons.description_outlined),
+                label: const Text('Generate Monthly'),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final payroll = await _showPayrollDialog();
+                  if (payroll == null) return;
+                  setState(() => _payrollRecords.insert(0, payroll));
+                  await _persistWorkspaceData();
+                  await _enqueueSync('INSERT', 'payroll', payroll.id);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Payroll'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              stat('Total Records', '$totalRecords', const Color(0xFF1D2439)),
+              const SizedBox(width: 12),
+              stat(
+                'Pending Records',
+                '$pendingRecords',
+                const Color(0xFFFF6F00),
+              ),
+              const SizedBox(width: 12),
+              stat(
+                'Pending Amount',
+                _money(pendingAmount),
+                const Color(0xFFFF6F00),
+              ),
+              const SizedBox(width: 12),
+              stat('Total Paid', _money(totalPaid), const Color(0xFF0A9F5A)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Employee ($totalRecords)',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: _payrollRecords.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No payroll records found.',
+                                style: TextStyle(
+                                  color: Color(0xFF6F7690),
+                                  fontSize: 18,
+                                ),
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('EMPLOYEE')),
+                                  DataColumn(label: Text('PAYMENT TYPE')),
+                                  DataColumn(label: Text('PAY PERIOD')),
+                                  DataColumn(label: Text('GROSS PAY')),
+                                  DataColumn(label: Text('NET PAY')),
+                                  DataColumn(label: Text('STATUS')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: _payrollRecords.map((r) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(r.employeeName)),
+                                      DataCell(Text(r.paymentType)),
+                                      DataCell(
+                                        Text(
+                                          '${r.payPeriodStart} - ${r.payPeriodEnd}',
+                                        ),
+                                      ),
+                                      DataCell(Text(_money(r.grossPay))),
+                                      DataCell(Text(_money(r.netPay))),
+                                      DataCell(Text(r.status)),
+                                      DataCell(
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _payrollRecords.removeWhere(
+                                                (x) => x.id == r.id,
+                                              );
+                                            });
+                                            _enqueueSync(
+                                              'DELETE',
+                                              'payroll',
+                                              r.id,
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildUsersPage() {
     final locationOptions = {
+      'All Locations',
       _storeLocation.trim(),
-      'Main Branch',
-      'Warehouse',
-      'Online',
+      ..._users.expand((u) => u.locations),
     }.where((v) => v.isNotEmpty).toList();
 
-    return _moduleCard(
-      title: 'User Management',
-      action: ElevatedButton.icon(
-        onPressed: _canManageEmployees
-            ? () async {
-                final created = await _showUserDialog();
-                if (created == null) return;
-                final authService = context.read<AuthService>();
-                final createdLogin = await authService.createStoreLogin(
-                  storeName: _companyName,
-                  tenantId: _activeTenantId ?? 'local',
-                  email: created.user.email,
-                  password: created.password,
-                  role: created.user.role.toLowerCase(),
-                  userName: created.user.name,
-                );
-                if (!createdLogin) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Could not create login (email already exists)',
-                      ),
-                    ),
-                  );
-                  return;
-                }
+    final roleOptions = {'All Roles', ..._users.map((u) => u.role)}.toList();
 
-                setState(() => _users.add(created.user));
-                await _enqueueSync('INSERT', 'users', created.user.id);
-              }
-            : null,
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Add User'),
-      ),
-      child: SizedBox(
-        height: 520,
-        child: ListView.builder(
-          itemCount: _users.length,
-          itemBuilder: (context, index) {
-            final user = _users[index];
-            return Card(
-              child: ListTile(
-                title: Text('${user.name} (${user.role})'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(user.email),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Permissions: ${user.permissions.join(', ')}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    Text(
-                      'Locations: ${user.locations.join(', ')}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
+    final query = _usersSearchController.text.trim().toLowerCase();
+    final filtered = _users.where((user) {
+      if (query.isNotEmpty &&
+          !user.name.toLowerCase().contains(query) &&
+          !user.email.toLowerCase().contains(query)) {
+        return false;
+      }
+      if (_usersRoleFilter != 'All Roles' && user.role != _usersRoleFilter) {
+        return false;
+      }
+      if (_usersStatusFilter == 'Active' && !user.active) return false;
+      if (_usersStatusFilter == 'Inactive' && user.active) return false;
+      if (_usersLocationFilter != 'All Locations' &&
+          !user.locations.contains(_usersLocationFilter)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final totalUsers = _users.length;
+    final activeUsers = _users.where((u) => u.active).length;
+    final admins = _users.where((u) => u.role == 'ADMIN').length;
+    final owners = _users.where((u) => u.role == 'OWNER').length;
+    final cashiers = _users.where((u) => u.role == 'CASHIER').length;
+
+    Widget metric({
+      required IconData icon,
+      required Color iconColor,
+      required Color iconBg,
+      required String value,
+      required String label,
+    }) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE6E2EF)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                isThreeLine: true,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(label, style: const TextStyle(color: Color(0xFF7A8093))),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Row(
                   children: [
-                    Switch(
-                      value: user.active,
-                      onChanged: _canManageEmployees
-                          ? (v) async {
-                              setState(() => user.active = v);
-                              await _enqueueSync('UPDATE', 'users', user.id);
-                            }
-                          : null,
+                    Icon(
+                      Icons.group_outlined,
+                      color: Color(0xFFB227D6),
+                      size: 34,
                     ),
-                    IconButton(
-                      onPressed: _canManageEmployees
-                          ? () async {
-                              final edited = await _showUserDialog(
-                                existing: user,
-                              );
-                              if (edited == null) return;
-                              setState(() {
-                                final i = _users.indexWhere(
-                                  (x) => x.id == user.id,
-                                );
-                                _users[i] = edited.user;
-                              });
-
-                              if (edited.password.isNotEmpty) {
-                                final authService = context.read<AuthService>();
-                                await authService.createStoreLogin(
-                                  storeName: _companyName,
-                                  tenantId: _activeTenantId ?? 'local',
-                                  email: edited.user.email,
-                                  password: edited.password,
-                                  role: edited.user.role.toLowerCase(),
-                                  userName: edited.user.name,
-                                );
-                              }
-
-                              await _enqueueSync(
-                                'UPDATE',
-                                'users',
-                                edited.user.id,
-                              );
-                            }
-                          : null,
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      onPressed: _canManageEmployees
-                          ? () async {
-                              setState(
-                                () =>
-                                    _users.removeWhere((x) => x.id == user.id),
-                              );
-                              await _enqueueSync('DELETE', 'users', user.id);
-                            }
-                          : null,
-                      icon: const Icon(Icons.delete_outline),
+                    SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'User Management',
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Manage user accounts and permissions.',
+                          style: TextStyle(
+                            color: Color(0xFF6D7383),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
+              ElevatedButton.icon(
+                onPressed: _canManageEmployees
+                    ? () async {
+                        final created = await _showUserDialog();
+                        if (created == null) return;
+                        final authService = context.read<AuthService>();
+                        final createdLogin = await authService.createStoreLogin(
+                          storeName: _companyName,
+                          tenantId: _activeTenantId ?? 'local',
+                          email: created.user.email,
+                          password: created.password,
+                          role: created.user.role.toLowerCase(),
+                          userName: created.user.name,
+                        );
+                        if (!createdLogin) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Could not create login (email already exists)',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        setState(() => _users.add(created.user));
+                        await _enqueueSync('INSERT', 'users', created.user.id);
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add User'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              metric(
+                icon: Icons.groups_outlined,
+                iconColor: const Color(0xFFB227D6),
+                iconBg: const Color(0xFFF4E8FA),
+                value: '$totalUsers',
+                label: 'users.totalUsers',
+              ),
+              const SizedBox(width: 12),
+              metric(
+                icon: Icons.check_circle_outline,
+                iconColor: const Color(0xFF1DAA65),
+                iconBg: const Color(0xFFE6F7EE),
+                value: '$activeUsers',
+                label: 'users.activeUsers',
+              ),
+              const SizedBox(width: 12),
+              metric(
+                icon: Icons.shield_outlined,
+                iconColor: const Color(0xFFE35D5D),
+                iconBg: const Color(0xFFFCECED),
+                value: '$admins',
+                label: 'users.admins',
+              ),
+              const SizedBox(width: 12),
+              metric(
+                icon: Icons.business_outlined,
+                iconColor: const Color(0xFFB227D6),
+                iconBg: const Color(0xFFF7EAFD),
+                value: '$owners',
+                label: 'users.owners',
+              ),
+              const SizedBox(width: 12),
+              metric(
+                icon: Icons.person_outline,
+                iconColor: const Color(0xFFF59A23),
+                iconBg: const Color(0xFFFFF4DD),
+                value: '$cashiers',
+                label: 'users.cashiers',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _usersSearchController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'Search users...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 160,
+                  child: _salesFilterDropdown(
+                    value: _usersRoleFilter,
+                    items: roleOptions,
+                    onChanged: (v) => setState(() => _usersRoleFilter = v),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 180,
+                  child: _salesFilterDropdown(
+                    value: _usersStatusFilter,
+                    items: const ['All Statuses', 'Active', 'Inactive'],
+                    onChanged: (v) => setState(() => _usersStatusFilter = v),
+                    labelMapper: (v) =>
+                        v == 'All Statuses' ? 'users.allStatuses' : v,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 200,
+                  child: _salesFilterDropdown(
+                    value: _usersLocationFilter,
+                    items: locationOptions,
+                    onChanged: (v) => setState(() => _usersLocationFilter = v),
+                    labelMapper: (v) =>
+                        v == 'All Locations' ? 'users.allLocations' : v,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Users (${filtered.length})',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(
+                            const Color(0xFFF5F2FB),
+                          ),
+                          columns: const [
+                            DataColumn(label: Text('USER')),
+                            DataColumn(label: Text('EMAIL')),
+                            DataColumn(label: Text('ROLE')),
+                            DataColumn(label: Text('USERS.LOCATIONS')),
+                            DataColumn(label: Text('STATUS')),
+                            DataColumn(label: Text('LAST LOGIN')),
+                            DataColumn(label: Text('ACTIONS')),
+                          ],
+                          rows: filtered.map((user) {
+                            final initials = user.name.trim().isEmpty
+                                ? 'U'
+                                : user.name
+                                      .trim()
+                                      .split(' ')
+                                      .take(2)
+                                      .map((x) => x.substring(0, 1))
+                                      .join()
+                                      .toUpperCase();
+
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 22,
+                                        backgroundColor: const Color(
+                                          0xFFD9F3E1,
+                                        ),
+                                        child: Text(
+                                          initials,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1E7D47),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            user.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${user.permissions.length} custom permissions',
+                                            style: const TextStyle(
+                                              color: Color(0xFF7E8495),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(Text(user.email)),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD9F3E1),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      user.role[0] +
+                                          user.role.substring(1).toLowerCase(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF19713F),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    user.locations.isEmpty
+                                        ? 'None assigned'
+                                        : user.locations.join(', '),
+                                    style: TextStyle(
+                                      fontStyle: user.locations.isEmpty
+                                          ? FontStyle.italic
+                                          : FontStyle.normal,
+                                      color: const Color(0xFF767D96),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: user.active
+                                          ? const Color(0xFFD9F3E1)
+                                          : const Color(0xFFF0F1F5),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      user.active ? 'Active' : 'Inactive',
+                                      style: TextStyle(
+                                        color: user.active
+                                            ? const Color(0xFF19713F)
+                                            : const Color(0xFF677084),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const DataCell(Text('Never')),
+                                DataCell(
+                                  IconButton(
+                                    onPressed: _canManageEmployees
+                                        ? () async {
+                                            final edited =
+                                                await _showUserDialog(
+                                                  existing: user,
+                                                );
+                                            if (edited == null) return;
+                                            setState(() {
+                                              final i = _users.indexWhere(
+                                                (x) => x.id == user.id,
+                                              );
+                                              _users[i] = edited.user;
+                                            });
+
+                                            if (edited.password.isNotEmpty) {
+                                              final authService = context
+                                                  .read<AuthService>();
+                                              await authService
+                                                  .createStoreLogin(
+                                                    storeName: _companyName,
+                                                    tenantId:
+                                                        _activeTenantId ??
+                                                        'local',
+                                                    email: edited.user.email,
+                                                    password: edited.password,
+                                                    role: edited.user.role
+                                                        .toLowerCase(),
+                                                    userName: edited.user.name,
+                                                  );
+                                            }
+
+                                            await _enqueueSync(
+                                              'UPDATE',
+                                              'users',
+                                              edited.user.id,
+                                            );
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSettingsTabContent() {
+    const inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+    );
+
+    Widget sectionTitle(String title, String subtitle) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF6D7383))),
+        ],
+      );
+    }
+
     switch (_settingsTab) {
+      case 'profile':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            sectionTitle(
+              'Profile Settings',
+              'Update your account information and password.',
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _profileName,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _profileName = v,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _profileEmail,
+                    decoration: const InputDecoration(
+                      labelText: 'Email Address',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _profileEmail = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: _profilePhone,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                border: inputBorder,
+              ),
+              onChanged: (v) => _profilePhone = v,
+            ),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            const SizedBox(height: 18),
+            const Text(
+              'Change Password',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: _profileCurrentPassword,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Current Password',
+                border: inputBorder,
+              ),
+              onChanged: (v) => _profileCurrentPassword = v,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _profileNewPassword,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'New Password',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _profileNewPassword = v,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _profileConfirmPassword,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _profileConfirmPassword = v,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
       case 'general':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            sectionTitle(
+              'General Settings',
+              'Configure basic store operations and working hours.',
+            ),
+            const SizedBox(height: 18),
             TextFormField(
               initialValue: _companyName,
               decoration: const InputDecoration(
                 labelText: 'Company Name',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _companyName = v,
             ),
@@ -3317,94 +6131,205 @@ class _DashboardScreenState extends State<DashboardScreen> {
               initialValue: _storeLocation,
               decoration: const InputDecoration(
                 labelText: 'Location',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _storeLocation = v,
             ),
-          ],
-        );
-      case 'hours':
-        return Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                initialValue: _openFrom,
-                decoration: const InputDecoration(
-                  labelText: 'Open From',
-                  border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _openFrom,
+                    decoration: const InputDecoration(
+                      labelText: 'Open From',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _openFrom = v,
+                  ),
                 ),
-                onChanged: (v) => _openFrom = v,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                initialValue: _openTo,
-                decoration: const InputDecoration(
-                  labelText: 'Open To',
-                  border: OutlineInputBorder(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _openTo,
+                    decoration: const InputDecoration(
+                      labelText: 'Open To',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _openTo = v,
+                  ),
                 ),
-                onChanged: (v) => _openTo = v,
-              ),
+              ],
             ),
-          ],
-        );
-      case 'payments':
-        return Column(
-          children: [
+            const SizedBox(height: 18),
+            const Text(
+              'Billing & Scanner',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
             CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Accept Cash'),
               value: _acceptCash,
               onChanged: (v) => setState(() => _acceptCash = v ?? true),
             ),
             CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Accept Card'),
               value: _acceptCard,
               onChanged: (v) => setState(() => _acceptCard = v ?? true),
             ),
             CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Accept Cheque'),
               value: _acceptCheque,
               onChanged: (v) => setState(() => _acceptCheque = v ?? false),
             ),
             CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Accept Installment'),
               value: _acceptInstallment,
               onChanged: (v) => setState(() => _acceptInstallment = v ?? false),
             ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _taxRate,
+                    decoration: const InputDecoration(
+                      labelText: 'Tax Rate (%)',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _taxRate = v,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _currency,
+                    items: const [
+                      DropdownMenuItem(value: 'LKR', child: Text('LKR')),
+                      DropdownMenuItem(value: 'USD', child: Text('USD')),
+                      DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+                      DropdownMenuItem(value: 'INR', child: Text('INR')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _currency = v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Currency',
+                      border: inputBorder,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         );
-      case 'tax':
-        return Row(
+      case 'company':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextFormField(
-                initialValue: _taxRate,
-                decoration: const InputDecoration(
-                  labelText: 'Tax Rate (%)',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (v) => _taxRate = v,
-              ),
+            sectionTitle(
+              'Company Information',
+              'Maintain your legal and contact details used in invoices.',
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _currency,
-                items: const [
-                  DropdownMenuItem(value: 'LKR', child: Text('LKR')),
-                  DropdownMenuItem(value: 'USD', child: Text('USD')),
-                  DropdownMenuItem(value: 'EUR', child: Text('EUR')),
-                  DropdownMenuItem(value: 'INR', child: Text('INR')),
-                ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _currency = v);
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Currency',
-                  border: OutlineInputBorder(),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _companyName,
+                    decoration: const InputDecoration(
+                      labelText: 'Company Display Name',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _companyName = v,
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _companyRegNo,
+                    decoration: const InputDecoration(
+                      labelText: 'Registration Number',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _companyRegNo = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _companyEmail,
+                    decoration: const InputDecoration(
+                      labelText: 'Company Email',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _companyEmail = v,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _companyPhone,
+                    decoration: const InputDecoration(
+                      labelText: 'Company Phone',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _companyPhone = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: _companyAddress,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Company Address',
+                border: inputBorder,
+              ),
+              onChanged: (v) => _companyAddress = v,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FD),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFDDE0EA)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFE7EBFA),
+                    ),
+                    child: const Icon(Icons.image_outlined),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Company logo uploader placeholder. Connect file upload for production use.',
+                      style: TextStyle(color: Color(0xFF6D7383)),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {},
+                    child: const Text('Upload Logo'),
+                  ),
+                ],
               ),
             ),
           ],
@@ -3413,11 +6338,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            sectionTitle(
+              'Receipt Settings',
+              'Customize the print format and bill appearance.',
+            ),
+            const SizedBox(height: 18),
             TextFormField(
               initialValue: _receiptHeader,
               decoration: const InputDecoration(
                 labelText: 'Receipt Header',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _receiptHeader = v,
             ),
@@ -3426,7 +6356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               initialValue: _receiptFooter,
               decoration: const InputDecoration(
                 labelText: 'Receipt Footer',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _receiptFooter = v,
             ),
@@ -3435,7 +6365,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               initialValue: _receiptNote,
               decoration: const InputDecoration(
                 labelText: 'Receipt Note',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _receiptNote = v,
             ),
@@ -3457,8 +6387,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _receiptPaper,
                     decoration: const InputDecoration(
-                      labelText: 'Paper Size',
-                      border: OutlineInputBorder(),
+                      labelText: 'Receipt Width',
+                      border: inputBorder,
                     ),
                     items: const [
                       DropdownMenuItem(
@@ -3484,7 +6414,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Margin',
-                      border: OutlineInputBorder(),
+                      border: inputBorder,
                     ),
                     onChanged: (v) => _receiptMargin = v,
                   ),
@@ -3499,22 +6429,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               decoration: const InputDecoration(
                 labelText: 'Font Scale (e.g. 1.0)',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _receiptFontScale = v,
             ),
             const SizedBox(height: 10),
-            ElevatedButton.icon(
-              onPressed: _printDemoReceipt,
-              icon: const Icon(Icons.print),
-              label: const Text('Print Demo Bill'),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _printDemoReceipt,
+                  icon: const Icon(Icons.print),
+                  label: const Text('Print Demo Bill'),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: () {},
+                  child: const Text('Preview Receipt'),
+                ),
+              ],
             ),
           ],
         );
-      case 'integrations':
+      case 'preferences':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            sectionTitle(
+              'User Preferences',
+              'Configure workspace appearance and daily behavior.',
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _uiTheme,
+                    items: const [
+                      DropdownMenuItem(value: 'Light', child: Text('Light')),
+                      DropdownMenuItem(value: 'Dark', child: Text('Dark')),
+                      DropdownMenuItem(
+                        value: 'System',
+                        child: Text('System Default'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _uiTheme = v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Theme',
+                      border: inputBorder,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _uiLanguage,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'English',
+                        child: Text('English'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Sinhala',
+                        child: Text('Sinhala'),
+                      ),
+                      DropdownMenuItem(value: 'Tamil', child: Text('Tamil')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _uiLanguage = v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Language',
+                      border: inputBorder,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable Notification Sounds'),
+              value: _prefSound,
+              onChanged: (v) => setState(() => _prefSound = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Auto Print Receipts After Sale'),
+              value: _prefAutoPrint,
+              onChanged: (v) => setState(() => _prefAutoPrint = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Use Compact Tables'),
+              value: _prefCompact,
+              onChanged: (v) => setState(() => _prefCompact = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Require Confirmation Before Checkout'),
+              value: _prefRequireSaleConfirmation,
+              onChanged: (v) =>
+                  setState(() => _prefRequireSaleConfirmation = v),
+            ),
+            const SizedBox(height: 4),
             DropdownButtonFormField<String>(
               initialValue: _integrationMode,
               items: const [
@@ -3533,8 +6554,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 setState(() => _integrationMode = v);
               },
               decoration: const InputDecoration(
-                labelText: 'Mode',
-                border: OutlineInputBorder(),
+                labelText: 'Sync Mode',
+                border: inputBorder,
               ),
             ),
             const SizedBox(height: 12),
@@ -3542,7 +6563,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               initialValue: _integrationWebhook,
               decoration: const InputDecoration(
                 labelText: 'Webhook URL (optional)',
-                border: OutlineInputBorder(),
+                border: inputBorder,
               ),
               onChanged: (v) => _integrationWebhook = v,
             ),
@@ -3569,33 +6590,130 @@ class _DashboardScreenState extends State<DashboardScreen> {
               value: _notifyReturns,
               onChanged: (v) => setState(() => _notifyReturns = v),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Email Alerts'),
+              value: _notifyEmail,
+              onChanged: (v) => setState(() => _notifyEmail = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('SMS Alerts'),
+              value: _notifySms,
+              onChanged: (v) => setState(() => _notifySms = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Payroll Reminder Alerts'),
+              value: _notifyPayroll,
+              onChanged: (v) => setState(() => _notifyPayroll = v),
+            ),
           ],
         );
-      case 'cash':
+      case 'payroll':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Enable Cash Drawer Integration'),
-              value: _cashDrawerEnabled,
-              onChanged: (v) => setState(() => _cashDrawerEnabled = v),
+            sectionTitle(
+              'Payroll Configuration',
+              'Set default payroll cycle, overtime and deductions.',
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _payrollCycle,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Monthly',
+                        child: Text('Monthly'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Bi-Weekly',
+                        child: Text('Bi-Weekly'),
+                      ),
+                      DropdownMenuItem(value: 'Weekly', child: Text('Weekly')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _payrollCycle = v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Pay Cycle',
+                      border: inputBorder,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _payrollWorkingDays,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Working Days / Month',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _payrollWorkingDays = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _payrollOtRate,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Overtime Multiplier',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _payrollOtRate = v,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _payrollLatePenalty,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Late Penalty (LKR)',
+                      border: inputBorder,
+                    ),
+                    onChanged: (v) => _payrollLatePenalty = v,
+                  ),
+                ),
+              ],
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Require PIN for Open Drawer'),
-              value: _cashDrawerRequirePin,
-              onChanged: (v) => setState(() => _cashDrawerRequirePin = v),
+              title: const Text('Auto Generate Payroll at Month End'),
+              value: _payrollAutoGenerate,
+              onChanged: (v) => setState(() => _payrollAutoGenerate = v),
             ),
-            const SizedBox(height: 8),
-            TextFormField(
-              initialValue: _cashDrawerPin,
-              decoration: const InputDecoration(
-                labelText: 'Drawer PIN',
-                border: OutlineInputBorder(),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable EPF/ETF Calculations'),
+              value: _payrollEnableEpf,
+              onChanged: (v) => setState(() => _payrollEnableEpf = v),
+            ),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FD),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFDDE0EA)),
               ),
-              obscureText: true,
-              onChanged: (v) => _cashDrawerPin = v,
+              child: const Text(
+                'These settings define defaults for payroll records created from the Payroll module.',
+                style: TextStyle(color: Color(0xFF6D7383)),
+              ),
             ),
           ],
         );
@@ -3740,45 +6858,112 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Manage your configuration, hours, payments and receipt.',
+            'Manage your profile, store preferences and operational settings.',
             style: TextStyle(color: Color(0xFF6D7383)),
           ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _settingsTabs
-                  .map(
-                    (tab) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(tab.icon, size: 16),
-                            const SizedBox(width: 6),
-                            Text(tab.label),
-                          ],
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 980;
+
+              final sidePanel = Container(
+                width: stacked ? double.infinity : 255,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFDDE0EA)),
+                  color: Colors.white,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _settingsTabs.map((tab) {
+                      final selected = _settingsTab == tab.key;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => setState(() => _settingsTab = tab.key),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: selected
+                                  ? const Color(0xFFEAF0FF)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFFBCD0FF)
+                                    : const Color(0x00000000),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  tab.icon,
+                                  size: 18,
+                                  color: selected
+                                      ? const Color(0xFF2454D3)
+                                      : const Color(0xFF5F6475),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    tab.label,
+                                    style: TextStyle(
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: selected
+                                          ? const Color(0xFF2454D3)
+                                          : const Color(0xFF2E3240),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        selected: _settingsTab == tab.key,
-                        onSelected: (_) =>
-                            setState(() => _settingsTab = tab.key),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDDE0EA)),
-              color: Colors.white,
-            ),
-            child: _buildSettingsTabContent(),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+
+              final contentPanel = Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFDDE0EA)),
+                  color: Colors.white,
+                ),
+                child: _buildSettingsTabContent(),
+              );
+
+              if (stacked) {
+                return Column(
+                  children: [
+                    sidePanel,
+                    const SizedBox(height: 12),
+                    contentPanel,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  sidePanel,
+                  const SizedBox(width: 14),
+                  Expanded(child: contentPanel),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -3832,59 +7017,699 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildServicesPage() {
-    return _moduleCard(
-      title: 'Services & Warranties',
-      action: ElevatedButton.icon(
-        onPressed: () async {
-          final job = await _showServiceDialog();
-          if (job == null) return;
-          setState(() {
-            _serviceJobs.add(job);
-            _enqueueSync('INSERT', 'services', job.id);
-          });
-        },
-        icon: const Icon(Icons.build_circle_outlined),
-        label: const Text('Add Service Job'),
-      ),
-      child: SizedBox(
-        height: 520,
-        child: _serviceJobs.isEmpty
-            ? const Center(child: Text('No service jobs yet.'))
-            : ListView.builder(
-                itemCount: _serviceJobs.length,
-                itemBuilder: (context, index) {
-                  final job = _serviceJobs[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text('${job.id} • ${job.title}'),
-                      subtitle: Text(
-                        'Technician: ${job.technician} • Warranty: ${job.warranty ? 'Yes' : 'No'}',
-                      ),
-                      trailing: DropdownButton<String>(
-                        value: job.status,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'PENDING',
-                            child: Text('PENDING'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'IN_PROGRESS',
-                            child: Text('IN_PROGRESS'),
-                          ),
-                          DropdownMenuItem(value: 'DONE', child: Text('DONE')),
-                        ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            job.status = v;
-                            _enqueueSync('UPDATE', 'services', job.id);
-                          });
-                        },
+    final query = _serviceSearchController.text.trim().toLowerCase();
+    final filtered = _serviceJobs.where((s) {
+      if (query.isEmpty) return true;
+      return s.title.toLowerCase().contains(query) ||
+          s.sku.toLowerCase().contains(query) ||
+          s.description.toLowerCase().contains(query);
+    }).toList();
+
+    Future<void> addService() async {
+      final job = await _showServiceDialog();
+      if (job == null) return;
+      setState(() => _serviceJobs.insert(0, job));
+      await _persistWorkspaceData();
+      await _enqueueSync('INSERT', 'services', job.id);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Services Management',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  );
-                },
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage your service offerings',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() => _selectedNavKey = 'jobCards');
+                },
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.assignment_outlined),
+                label: const Text('Job Cards'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: addService,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Service'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: TextField(
+              controller: _serviceSearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search services by name, SKU, or description...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'All Services (${filtered.length})',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No services found',
+                                style: TextStyle(
+                                  color: Color(0xFF7E8495),
+                                  fontSize: 20,
+                                ),
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('SERVICE')),
+                                  DataColumn(label: Text('SKU')),
+                                  DataColumn(label: Text('PRICE')),
+                                  DataColumn(label: Text('STATUS')),
+                                  DataColumn(label: Text('ACTIONS')),
+                                ],
+                                rows: filtered.map((s) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(
+                                        Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              s.title,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              s.description,
+                                              style: const TextStyle(
+                                                color: Color(0xFF7E8495),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      DataCell(Text(s.sku)),
+                                      DataCell(Text(_money(s.defaultPrice))),
+                                      DataCell(
+                                        Switch(
+                                          value: s.active,
+                                          onChanged: (v) {
+                                            setState(() => s.active = v);
+                                            _enqueueSync(
+                                              'UPDATE',
+                                              'services',
+                                              s.id,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      DataCell(
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _serviceJobs.removeWhere(
+                                                (x) => x.id == s.id,
+                                              );
+                                            });
+                                            _enqueueSync(
+                                              'DELETE',
+                                              'services',
+                                              s.id,
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobCardsPage() {
+    bool isJobCard(_ServiceJobItem item) {
+      return item.customerName.trim().isNotEmpty ||
+          item.services.isNotEmpty ||
+          item.materials.isNotEmpty;
+    }
+
+    final jobs = _serviceJobs.where(isJobCard).where((job) {
+      final statusOk =
+          _jobCardStatusFilter == 'ALL' || job.status == _jobCardStatusFilter;
+      final priorityOk =
+          _jobCardPriorityFilter == 'ALL' ||
+          job.priority == _jobCardPriorityFilter;
+      return statusOk && priorityOk;
+    }).toList();
+
+    Future<void> createJobCard() async {
+      final job = await _showJobCardDialog();
+      if (job == null) return;
+      setState(() => _serviceJobs.insert(0, job));
+      await _persistWorkspaceData();
+      await _enqueueSync('INSERT', 'job_cards', job.id);
+    }
+
+    Color priorityColor(String priority) {
+      switch (priority) {
+        case 'HIGH':
+          return const Color(0xFFE53935);
+        case 'MEDIUM':
+          return const Color(0xFFFF9800);
+        default:
+          return const Color(0xFF2E7D32);
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Job Cards',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage service job cards and track progress',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: createJobCard,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Create Job Card'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'All Job Cards',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 180,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _jobCardStatusFilter,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'ALL',
+                                child: Text('All Statuses'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'OPEN',
+                                child: Text('Open'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'IN_PROGRESS',
+                                child: Text('In Progress'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'COMPLETED',
+                                child: Text('Completed'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(
+                                () => _jobCardStatusFilter = value ?? 'ALL',
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 180,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _jobCardPriorityFilter,
+                            decoration: const InputDecoration(
+                              labelText: 'Priority',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'ALL',
+                                child: Text('All Priorities'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'LOW',
+                                child: Text('Low'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'MEDIUM',
+                                child: Text('Medium'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'HIGH',
+                                child: Text('High'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(
+                                () => _jobCardPriorityFilter = value ?? 'ALL',
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: jobs.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No job cards found',
+                                style: TextStyle(
+                                  color: Color(0xFF8780A0),
+                                  fontSize: 20,
+                                ),
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                  const Color(0xFFF5F2FB),
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('TITLE')),
+                                  DataColumn(label: Text('CUSTOMER')),
+                                  DataColumn(label: Text('PRIORITY')),
+                                  DataColumn(label: Text('SCHEDULED')),
+                                  DataColumn(label: Text('STATUS')),
+                                  DataColumn(label: Text('TOTAL')),
+                                ],
+                                rows: jobs.map((job) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(job.title)),
+                                      DataCell(
+                                        Text(
+                                          job.customerName.isEmpty
+                                              ? 'Walk-in Customer'
+                                              : job.customerName,
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: priorityColor(
+                                              job.priority,
+                                            ).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            job.priority,
+                                            style: TextStyle(
+                                              color: priorityColor(
+                                                job.priority,
+                                              ),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Text(
+                                          [job.scheduledDate, job.scheduledTime]
+                                              .where((s) => s.trim().isNotEmpty)
+                                              .join(' ')
+                                              .trim(),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEEE8FA),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            job.status,
+                                            style: const TextStyle(
+                                              color: Color(0xFF6A1B9A),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(Text(_money(job.defaultPrice))),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarrantiesPage() {
+    final query = _warrantySearchController.text.trim().toLowerCase();
+    final allWarrantyRows = _serviceJobs.where((job) {
+      if (!job.warranty) return false;
+      final haystack = [
+        job.sku,
+        job.title,
+        job.customerName,
+        job.deviceInfo,
+      ].join(' ').toLowerCase();
+      return query.isEmpty || haystack.contains(query);
+    }).toList();
+
+    final currentRows = allWarrantyRows.where((job) {
+      switch (_warrantyTabKey) {
+        case 'claims':
+          return job.status == 'CLAIMED';
+        case 'returns':
+          return job.status == 'RETURNED';
+        case 'analytics':
+          return false;
+        default:
+          return true;
+      }
+    }).toList();
+
+    Widget tabItem({
+      required String key,
+      required IconData icon,
+      required String label,
+    }) {
+      final selected = _warrantyTabKey == key;
+      return InkWell(
+        onTap: () => setState(() => _warrantyTabKey = key),
+        child: Container(
+          padding: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? const Color(0xFFB227D6) : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: selected
+                    ? const Color(0xFFB227D6)
+                    : const Color(0xFF777E93),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected
+                      ? const Color(0xFFB227D6)
+                      : const Color(0xFF777E93),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 28,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Warranty & Returns Management',
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Manage warranties, claims, and returns for your products',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              tabItem(
+                key: 'warranties',
+                icon: Icons.verified_user_outlined,
+                label: 'Warranties',
+              ),
+              const SizedBox(width: 34),
+              tabItem(
+                key: 'claims',
+                icon: Icons.warning_amber_rounded,
+                label: 'Claims',
+              ),
+              const SizedBox(width: 34),
+              tabItem(
+                key: 'returns',
+                icon: Icons.sync_alt_rounded,
+                label: 'Returns',
+              ),
+              const SizedBox(width: 34),
+              tabItem(
+                key: 'analytics',
+                icon: Icons.bar_chart_rounded,
+                label: 'Analytics',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: TextField(
+              controller: _warrantySearchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText:
+                    'Search warranties by serial number, product, or customer...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E2EF)),
+              ),
+              child: currentRows.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.shield_outlined,
+                            size: 66,
+                            color: Color(0xFFC7BCD9),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            _warrantyTabKey == 'warranties'
+                                ? 'No warranties found'
+                                : _warrantyTabKey == 'claims'
+                                ? 'No claims found'
+                                : _warrantyTabKey == 'returns'
+                                ? 'No returns found'
+                                : 'No analytics found',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF2E3448),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _warrantyTabKey == 'warranties'
+                                ? 'No warranty records have been created yet.'
+                                : _warrantyTabKey == 'claims'
+                                ? 'No warranty claims have been created yet.'
+                                : _warrantyTabKey == 'returns'
+                                ? 'No return records have been created yet.'
+                                : 'No analytics records are available yet.',
+                            style: const TextStyle(
+                              color: Color(0xFF7F8599),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          const Color(0xFFF5F2FB),
+                        ),
+                        columns: const [
+                          DataColumn(label: Text('SERIAL')),
+                          DataColumn(label: Text('PRODUCT')),
+                          DataColumn(label: Text('CUSTOMER')),
+                          DataColumn(label: Text('STATUS')),
+                        ],
+                        rows: currentRows.map((job) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(job.sku.isEmpty ? '-' : job.sku)),
+                              DataCell(Text(job.title)),
+                              DataCell(
+                                Text(
+                                  job.customerName.isEmpty
+                                      ? 'Walk-in Customer'
+                                      : job.customerName,
+                                ),
+                              ),
+                              DataCell(Text(job.status)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3933,65 +7758,378 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildInvoicesPage() {
-    return _moduleCard(
-      title: 'Invoices',
-      action: ElevatedButton.icon(
-        onPressed: _sales.isEmpty
-            ? null
-            : () {
-                final sale = _sales.first;
-                final invoice = _InvoiceItem(
-                  id: 'INV${DateTime.now().millisecondsSinceEpoch}',
-                  saleId: sale.id,
-                  amount: sale.total,
-                  status: 'UNPAID',
-                );
-                setState(() {
-                  _invoices.insert(0, invoice);
-                  _enqueueSync('INSERT', 'invoices', invoice.id);
-                });
-              },
-        icon: const Icon(Icons.request_page),
-        label: const Text('Generate From Latest Sale'),
-      ),
-      child: SizedBox(
-        height: 520,
-        child: _invoices.isEmpty
-            ? const Center(
-                child: Text(
-                  'No invoices yet. Complete sales and generate invoices.',
+  Widget _buildCategoriesPage() {
+    final categories = _productCategories.where((c) {
+      final q = _productSearchController.text.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return c.toLowerCase().contains(q);
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Categories',
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Organize products using categories.',
+            style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _productSearchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    hintText: 'Search categories...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              )
-            : ListView.builder(
-                itemCount: _invoices.length,
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: _canManageCatalog ? _manageCategories : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Add New Category'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              child: ListView.separated(
+                itemCount: categories.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final inv = _invoices[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text('${inv.id} • ${_money(inv.amount)}'),
-                      subtitle: Text('Sale ${inv.saleId}'),
-                      trailing: DropdownButton<String>(
-                        value: inv.status,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'UNPAID',
-                            child: Text('UNPAID'),
-                          ),
-                          DropdownMenuItem(value: 'PAID', child: Text('PAID')),
-                        ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            inv.status = v;
-                            _enqueueSync('UPDATE', 'invoices', inv.id);
-                          });
-                        },
-                      ),
-                    ),
+                  final cat = categories[index];
+                  final count = _products
+                      .where(
+                        (p) => p.category.toLowerCase() == cat.toLowerCase(),
+                      )
+                      .length;
+                  return ListTile(
+                    title: Text(cat),
+                    subtitle: Text('$count products'),
+                    trailing: _canManageCatalog
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () => _editCategory(cat),
+                                icon: const Icon(Icons.edit_outlined),
+                                tooltip: 'Edit category',
+                              ),
+                              IconButton(
+                                onPressed: () => _deleteCategory(cat),
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Delete category',
+                              ),
+                            ],
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _canManageCatalog ? () => _editCategory(cat) : null,
                   );
                 },
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editCategory(String oldCategory) async {
+    final controller = TextEditingController(text: oldCategory);
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Category'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Category Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (updated == null || updated.isEmpty || updated == oldCategory) return;
+    final duplicate = _productCategories.any(
+      (c) => c.toLowerCase() == updated.toLowerCase(),
+    );
+    if (duplicate) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Category already exists')));
+      return;
+    }
+
+    setState(() {
+      _productCategories = _productCategories
+          .map((c) => c == oldCategory ? updated : c)
+          .toList();
+      for (final product in _products) {
+        if (product.category == oldCategory) {
+          product.category = updated;
+        }
+      }
+      if (_posCategoryFilter == oldCategory) {
+        _posCategoryFilter = updated;
+      }
+    });
+    await _persistWorkspaceData();
+    await _enqueueSync('UPDATE', 'categories', updated);
+  }
+
+  Future<void> _deleteCategory(String category) async {
+    final affectedCount = _products
+        .where((p) => p.category.toLowerCase() == category.toLowerCase())
+        .length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text(
+          affectedCount > 0
+              ? 'Delete "$category"? $affectedCount products will be moved to General.'
+              : 'Delete "$category"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE35D5D),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _productCategories.removeWhere((c) => c == category);
+      if (_productCategories.isEmpty) {
+        _productCategories.add('General');
+      }
+      if (affectedCount > 0) {
+        if (!_productCategories.any((c) => c.toLowerCase() == 'general')) {
+          _productCategories.add('General');
+        }
+        for (final product in _products) {
+          if (product.category.toLowerCase() == category.toLowerCase()) {
+            product.category = 'General';
+          }
+        }
+      }
+      if (_posCategoryFilter == category) {
+        _posCategoryFilter = 'All Categories';
+      }
+    });
+    await _persistWorkspaceData();
+    await _enqueueSync('DELETE', 'categories', category);
+  }
+
+  Widget _buildPurchaseOrdersPage() {
+    final query = _purchaseOrderSearchController.text.trim().toLowerCase();
+    final filtered = _purchaseOrders.where((po) {
+      if (_purchaseOrderStatusFilter != 'All Statuses' &&
+          po.status != _purchaseOrderStatusFilter) {
+        return false;
+      }
+      if (query.isEmpty) return true;
+      return po.id.toLowerCase().contains(query) ||
+          po.supplier.toLowerCase().contains(query);
+    }).toList();
+
+    Future<void> createOrder() async {
+      final po = await _showPurchaseOrderDialog();
+      if (po == null) return;
+      setState(() => _purchaseOrders.insert(0, po));
+      await _persistWorkspaceData();
+      await _enqueueSync('INSERT', 'purchase_orders', po.id);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Purchase Orders',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage purchase orders and supplier relationships.',
+                      style: TextStyle(color: Color(0xFF6D7383), fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _canManageCatalog ? createOrder : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB227D6),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Create Order'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE6E2EF)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _purchaseOrderSearchController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'Search purchase orders...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 190,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _purchaseOrderStatusFilter,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'All Statuses',
+                        child: Text('All Statuses'),
+                      ),
+                      DropdownMenuItem(value: 'DRAFT', child: Text('DRAFT')),
+                      DropdownMenuItem(
+                        value: 'PENDING',
+                        child: Text('PENDING'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'RECEIVED',
+                        child: Text('RECEIVED'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'CANCELLED',
+                        child: Text('CANCELLED'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _purchaseOrderStatusFilter = v);
+                    },
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Card(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 56,
+                            color: const Color(0xFFB9A9D8),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'No purchase orders yet',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Get started by creating your first purchase order to manage your inventory.',
+                            style: TextStyle(color: Color(0xFF7E8495)),
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton(
+                            onPressed: _canManageCatalog ? createOrder : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFB227D6),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Create Your First Order'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final po = filtered[index];
+                        return ListTile(
+                          leading: const Icon(Icons.assignment_outlined),
+                          title: Text('${po.id} • ${po.supplier}'),
+                          subtitle: Text(
+                            '${po.itemsCount} items • ${_money(po.amount)} • ${po.status}',
+                          ),
+                          trailing: Text(po.expectedDate),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4120,10 +8258,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final minStockController = TextEditingController(
       text: existing?.minStock.toString() ?? '0',
     );
+    final descriptionController = TextEditingController();
+    final costController = TextEditingController();
+    final unitController = TextEditingController(text: 'Unit');
+    final warrantyController = TextEditingController(text: '0');
+    String selectedType = 'Unit';
 
-    return showDialog<_ProductItem>(
+    return showGeneralDialog<_ProductItem>(
       context: context,
-      builder: (context) {
+      barrierDismissible: true,
+      barrierLabel: 'AddProduct',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
         final categories = _productCategories.isEmpty
             ? ['General']
             : List<String>.from(_productCategories);
@@ -4139,310 +8286,1673 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         return StatefulBuilder(
-          builder: (context, setLocal) => AlertDialog(
-            title: Text(existing == null ? 'Add Product' : 'Edit Product'),
-            content: SizedBox(
-              width: 460,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: idController,
-                    decoration: const InputDecoration(labelText: 'ID'),
-                  ),
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 600,
+                  height: double.infinity,
+                  child: Column(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              existing == null
+                                  ? 'Add New Product'
+                                  : 'Edit Product',
+                              style: const TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
                       Expanded(
-                        child: TextField(
-                          controller: barcodeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Barcode',
-                            border: OutlineInputBorder(),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Product Name *'),
+                              const SizedBox(height: 6),
+                              TextField(controller: nameController),
+                              const SizedBox(height: 12),
+                              const Text('Description'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: descriptionController,
+                                maxLines: 3,
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('SKU *'),
+                                        const SizedBox(height: 6),
+                                        TextField(controller: idController),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Category *'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          key: ValueKey(selectedCategory),
+                                          initialValue: selectedCategory,
+                                          items: categories
+                                              .map(
+                                                (c) => DropdownMenuItem(
+                                                  value: c,
+                                                  child: Text(c),
+                                                ),
+                                              )
+                                              .toList(),
+                                          onChanged: (v) {
+                                            if (v == null) return;
+                                            setLocal(
+                                              () => selectedCategory = v,
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Product Type'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          initialValue: selectedType,
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'Unit',
+                                              child: Text('Unit'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Service',
+                                              child: Text('Service'),
+                                            ),
+                                          ],
+                                          onChanged: (v) {
+                                            if (v == null) return;
+                                            setLocal(() => selectedType = v);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Price *'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: priceController,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Cost'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: costController,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Quantity'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: stockController,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Minimum Stock'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: minStockController,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Unit'),
+                                        const SizedBox(height: 6),
+                                        TextField(controller: unitController),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Barcode'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: barcodeController,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      barcodeController.text =
+                                          _generateBarcodeValue();
+                                    },
+                                    child: const Text('Generate'),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Warranty Period'),
+                                        const SizedBox(height: 6),
+                                        TextField(
+                                          controller: warrantyController,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Padding(
+                                    padding: EdgeInsets.only(bottom: 12),
+                                    child: Text('months'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Optional. Set 0 or leave empty for no warranty.',
+                                    style: TextStyle(
+                                      color: Color(0xFF7E8495),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () => _printProductBarcode(
+                                      _ProductItem(
+                                        id: idController.text.trim(),
+                                        name: nameController.text.trim(),
+                                        category: selectedCategory,
+                                        barcode: barcodeController.text.trim(),
+                                        price:
+                                            double.tryParse(
+                                              priceController.text.trim(),
+                                            ) ??
+                                            0,
+                                        stock:
+                                            int.tryParse(
+                                              stockController.text.trim(),
+                                            ) ??
+                                            0,
+                                        minStock:
+                                            int.tryParse(
+                                              minStockController.text.trim(),
+                                            ) ??
+                                            0,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.qr_code_2_outlined),
+                                    tooltip: 'Print barcode preview',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              const Divider(),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: newCategoryController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Add New Category',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      final value = newCategoryController.text
+                                          .trim();
+                                      if (value.isEmpty) return;
+                                      if (categories.any(
+                                        (c) =>
+                                            c.toLowerCase() ==
+                                            value.toLowerCase(),
+                                      )) {
+                                        return;
+                                      }
+                                      setLocal(() {
+                                        categories.add(value);
+                                        selectedCategory = value;
+                                      });
+                                      newCategoryController.clear();
+                                    },
+                                    child: const Text('Add'),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          barcodeController.text = _generateBarcodeValue();
-                        },
-                        icon: const Icon(Icons.qr_code_2),
-                        label: const Text('Generate'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey(selectedCategory),
-                          initialValue: selectedCategory,
-                          decoration: const InputDecoration(
-                            labelText: 'Category',
-                            border: OutlineInputBorder(),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
                           ),
-                          items: categories
-                              .map(
-                                (c) =>
-                                    DropdownMenuItem(value: c, child: Text(c)),
-                              )
-                              .toList(),
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setLocal(() => selectedCategory = v);
-                          },
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final item = _ProductItem(
+                                  id: idController.text.trim(),
+                                  name: nameController.text.trim(),
+                                  category: selectedCategory,
+                                  barcode: barcodeController.text.trim(),
+                                  price:
+                                      double.tryParse(
+                                        priceController.text.trim(),
+                                      ) ??
+                                      0,
+                                  stock:
+                                      int.tryParse(
+                                        stockController.text.trim(),
+                                      ) ??
+                                      0,
+                                  minStock:
+                                      int.tryParse(
+                                        minStockController.text.trim(),
+                                      ) ??
+                                      0,
+                                );
+                                if (!_productCategories.any(
+                                  (c) =>
+                                      c.toLowerCase() ==
+                                      selectedCategory.toLowerCase(),
+                                )) {
+                                  _productCategories.add(selectedCategory);
+                                }
+                                Navigator.pop(context, item);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(
+                                existing == null
+                                    ? 'Create Product'
+                                    : 'Update Product',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: newCategoryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Add New Category',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          final value = newCategoryController.text.trim();
-                          if (value.isEmpty) return;
-                          if (categories.any(
-                            (c) => c.toLowerCase() == value.toLowerCase(),
-                          ))
-                            return;
-                          setLocal(() {
-                            categories.add(value);
-                            selectedCategory = value;
-                          });
-                          newCategoryController.clear();
-                        },
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  TextField(
-                    controller: priceController,
-                    decoration: const InputDecoration(labelText: 'Price'),
-                  ),
-                  TextField(
-                    controller: stockController,
-                    decoration: const InputDecoration(labelText: 'Stock'),
-                  ),
-                  TextField(
-                    controller: minStockController,
-                    decoration: const InputDecoration(labelText: 'Min Stock'),
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final item = _ProductItem(
-                    id: idController.text.trim(),
-                    name: nameController.text.trim(),
-                    category: selectedCategory,
-                    barcode: barcodeController.text.trim(),
-                    price: double.tryParse(priceController.text.trim()) ?? 0,
-                    stock: int.tryParse(stockController.text.trim()) ?? 0,
-                    minStock: int.tryParse(minStockController.text.trim()) ?? 0,
-                  );
-                  if (!_productCategories.any(
-                    (c) => c.toLowerCase() == selectedCategory.toLowerCase(),
-                  )) {
-                    _productCategories.add(selectedCategory);
-                  }
-                  Navigator.pop(context, item);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
+            );
+          },
         );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
       },
     );
   }
 
   Future<_CustomerItem?> _showCustomerDialog({_CustomerItem? existing}) async {
-    final idController = TextEditingController(
-      text:
-          existing?.id ?? 'C${DateTime.now().millisecondsSinceEpoch % 100000}',
-    );
     final nameController = TextEditingController(text: existing?.name ?? '');
+    final vehicleController = TextEditingController(
+      text: existing?.vehicleNumber ?? '',
+    );
+    final addressController = TextEditingController(
+      text: existing?.address ?? '',
+    );
+    final notesController = TextEditingController(text: existing?.notes ?? '');
     final phoneController = TextEditingController(text: existing?.phone ?? '');
     final emailController = TextEditingController(text: existing?.email ?? '');
     final creditLimitController = TextEditingController(
       text: (existing?.creditLimit ?? 0).toString(),
     );
-    final currentBalanceController = TextEditingController(
-      text: (existing?.currentBalance ?? 0).toString(),
-    );
-    final loyaltyPointsController = TextEditingController(
-      text: (existing?.loyaltyPoints ?? 0).toString(),
+
+    final created = await showGeneralDialog<_CustomerItem>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'AddCustomer',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            color: Colors.white,
+            child: SizedBox(
+              width: 460,
+              height: double.infinity,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          existing == null
+                              ? 'Add New Customer'
+                              : 'Edit Customer',
+                          style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Customer Name *'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter customer name',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Vehicle Number (License Plate) *'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: vehicleController,
+                            decoration: const InputDecoration(
+                              hintText: 'e.g., ABC-1234',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Credit Limit'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: creditLimitController,
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Phone Number'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: phoneController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter phone number',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Email Address'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: emailController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter email address',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Address'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: addressController,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter address',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Notes'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: notesController,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              hintText: 'Additional notes',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: Color(0xFFE6E2EF))),
+                    ),
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            final id =
+                                existing?.id ??
+                                'C${DateTime.now().millisecondsSinceEpoch % 100000}';
+                            Navigator.pop(
+                              context,
+                              _CustomerItem(
+                                id: id,
+                                name: nameController.text.trim(),
+                                vehicleNumber: vehicleController.text.trim(),
+                                phone: phoneController.text.trim(),
+                                email: emailController.text.trim(),
+                                address: addressController.text.trim(),
+                                notes: notesController.text.trim(),
+                                creditLimit:
+                                    double.tryParse(
+                                      creditLimitController.text.trim(),
+                                    ) ??
+                                    0,
+                                currentBalance: existing?.currentBalance ?? 0,
+                                loyaltyPoints: existing?.loyaltyPoints ?? 0,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFB227D6),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(
+                            existing == null
+                                ? 'Create Customer'
+                                : 'Update Customer',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
     );
 
-    return showDialog<_CustomerItem>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null ? 'Add Customer' : 'Edit Customer'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: idController,
-                decoration: const InputDecoration(labelText: 'ID'),
-              ),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone'),
-              ),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              TextField(
-                controller: creditLimitController,
-                decoration: const InputDecoration(labelText: 'Credit Limit'),
-              ),
-              TextField(
-                controller: currentBalanceController,
-                decoration: const InputDecoration(labelText: 'Current Balance'),
-              ),
-              TextField(
-                controller: loyaltyPointsController,
-                decoration: const InputDecoration(labelText: 'Loyalty Points'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(
-                context,
-                _CustomerItem(
-                  id: idController.text.trim(),
-                  name: nameController.text.trim(),
-                  phone: phoneController.text.trim(),
-                  email: emailController.text.trim(),
-                  creditLimit:
-                      double.tryParse(creditLimitController.text.trim()) ?? 0,
-                  currentBalance:
-                      double.tryParse(currentBalanceController.text.trim()) ??
-                      0,
-                  loyaltyPoints:
-                      int.tryParse(loyaltyPointsController.text.trim()) ?? 0,
-                ),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    nameController.dispose();
+    vehicleController.dispose();
+    addressController.dispose();
+    notesController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    creditLimitController.dispose();
+
+    return created;
+  }
+
+  Future<_AttendanceRecordItem?> _showAttendanceDialog() async {
+    final dateController = TextEditingController(
+      text: _formatDate(DateTime.now()),
     );
+    final inController = TextEditingController(text: '');
+    final outController = TextEditingController(text: '');
+    final regularHoursController = TextEditingController(text: '8');
+    final overtimeHoursController = TextEditingController(text: '0');
+    final notesController = TextEditingController();
+    String selectedEmployeeId = _employees.isEmpty ? '' : _employees.first.id;
+    String status = 'Present';
+    bool isHoliday = false;
+
+    final created = await showGeneralDialog<_AttendanceRecordItem>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'AddAttendance',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 620,
+                  height: double.infinity,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Add New Attendance Record',
+                              style: TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Employee *'),
+                              const SizedBox(height: 6),
+                              DropdownButtonFormField<String>(
+                                initialValue: selectedEmployeeId.isEmpty
+                                    ? null
+                                    : selectedEmployeeId,
+                                items: _employees
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e.id,
+                                        child: Text(e.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setLocal(() => selectedEmployeeId = value);
+                                },
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Date',
+                                      dateController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Status'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          initialValue: status,
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'Present',
+                                              child: Text('Present'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Absent',
+                                              child: Text('Absent'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Leave',
+                                              child: Text('Leave'),
+                                            ),
+                                          ],
+                                          onChanged: (value) {
+                                            if (value == null) return;
+                                            setLocal(() => status = value);
+                                          },
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'In:',
+                                      inController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Out:',
+                                      outController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Regular Hours',
+                                      regularHoursController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Overtime Hours',
+                                      overtimeHoursController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _labeledTextField(
+                                'Notes',
+                                notesController,
+                                maxLines: 3,
+                              ),
+                              const SizedBox(height: 10),
+                              CheckboxListTile(
+                                contentPadding: EdgeInsets.zero,
+                                value: isHoliday,
+                                onChanged: (value) =>
+                                    setLocal(() => isHoliday = value ?? false),
+                                title: const Text('Mark as Holiday'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final employee = _employees.firstWhere(
+                                  (e) => e.id == selectedEmployeeId,
+                                  orElse: () => _EmployeeItem(
+                                    id: 'EMP',
+                                    name: 'Employee',
+                                    role: 'STAFF',
+                                    active: true,
+                                  ),
+                                );
+                                final dateParts = dateController.text
+                                    .trim()
+                                    .split('/');
+                                DateTime parsedDate = DateTime.now();
+                                if (dateParts.length == 3) {
+                                  parsedDate = DateTime(
+                                    int.tryParse(dateParts[2]) ??
+                                        DateTime.now().year,
+                                    int.tryParse(dateParts[0]) ??
+                                        DateTime.now().month,
+                                    int.tryParse(dateParts[1]) ??
+                                        DateTime.now().day,
+                                  );
+                                }
+                                Navigator.pop(
+                                  context,
+                                  _AttendanceRecordItem(
+                                    id: 'AT${DateTime.now().millisecondsSinceEpoch}',
+                                    employeeId: employee.id,
+                                    employeeName: employee.name,
+                                    date: parsedDate,
+                                    status: status,
+                                    clockIn: inController.text.trim().isEmpty
+                                        ? '--:--'
+                                        : inController.text.trim(),
+                                    clockOut: outController.text.trim().isEmpty
+                                        ? '--:--'
+                                        : outController.text.trim(),
+                                    regularHours:
+                                        double.tryParse(
+                                          regularHoursController.text.trim(),
+                                        ) ??
+                                        0,
+                                    overtimeHours:
+                                        double.tryParse(
+                                          overtimeHoursController.text.trim(),
+                                        ) ??
+                                        0,
+                                    notes: notesController.text.trim(),
+                                    isHoliday: isHoliday,
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Create Attendance'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+
+    dateController.dispose();
+    inController.dispose();
+    outController.dispose();
+    regularHoursController.dispose();
+    overtimeHoursController.dispose();
+    notesController.dispose();
+
+    return created;
+  }
+
+  Future<_PayrollRecordItem?> _showPayrollDialog() async {
+    String selectedEmployeeId = _employees.isEmpty ? '' : _employees.first.id;
+    final baseSalaryController = TextEditingController();
+    final overtimeController = TextEditingController(text: '0');
+    final bonusController = TextEditingController(text: '0');
+    final deductionsController = TextEditingController(text: '0');
+    final taxController = TextEditingController(text: '0');
+    final payPeriodStartController = TextEditingController(text: 'mm/dd/yyyy');
+    final payPeriodEndController = TextEditingController(text: 'mm/dd/yyyy');
+    final payDateController = TextEditingController(text: 'mm/dd/yyyy');
+    final daysWorkedController = TextEditingController(text: '22');
+    final hoursWorkedController = TextEditingController(text: '176');
+    final notesController = TextEditingController();
+
+    if (_employees.isNotEmpty) {
+      baseSalaryController.text = _employees.first.baseSalary.toStringAsFixed(
+        2,
+      );
+    }
+
+    final created = await showGeneralDialog<_PayrollRecordItem>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'AddPayroll',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 760,
+                  height: double.infinity,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Add Payroll Record',
+                              style: TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Employee *'),
+                              const SizedBox(height: 6),
+                              DropdownButtonFormField<String>(
+                                initialValue: selectedEmployeeId.isEmpty
+                                    ? null
+                                    : selectedEmployeeId,
+                                items: _employees
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e.id,
+                                        child: Text(e.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  final employee = _employees.firstWhere(
+                                    (e) => e.id == value,
+                                  );
+                                  setLocal(() {
+                                    selectedEmployeeId = value;
+                                    baseSalaryController.text = employee
+                                        .baseSalary
+                                        .toStringAsFixed(2);
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Base Salary *',
+                                      baseSalaryController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Overtime',
+                                      overtimeController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Bonus',
+                                      bonusController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Deductions',
+                                      deductionsController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Tax',
+                                      taxController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Pay Period Start *',
+                                      payPeriodStartController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Pay Period End *',
+                                      payPeriodEndController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Pay Date *',
+                                      payDateController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Days Worked',
+                                      daysWorkedController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Hours Worked',
+                                      hoursWorkedController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _labeledTextField(
+                                'Notes',
+                                notesController,
+                                maxLines: 3,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final employee = _employees.firstWhere(
+                                  (e) => e.id == selectedEmployeeId,
+                                  orElse: () => _EmployeeItem(
+                                    id: 'EMP',
+                                    name: 'Employee',
+                                    role: 'STAFF',
+                                    active: true,
+                                  ),
+                                );
+                                final baseSalary =
+                                    double.tryParse(
+                                      baseSalaryController.text.trim(),
+                                    ) ??
+                                    0;
+                                final overtime =
+                                    double.tryParse(
+                                      overtimeController.text.trim(),
+                                    ) ??
+                                    0;
+                                final bonus =
+                                    double.tryParse(
+                                      bonusController.text.trim(),
+                                    ) ??
+                                    0;
+                                final deductions =
+                                    double.tryParse(
+                                      deductionsController.text.trim(),
+                                    ) ??
+                                    0;
+                                final tax =
+                                    double.tryParse(
+                                      taxController.text.trim(),
+                                    ) ??
+                                    0;
+                                Navigator.pop(
+                                  context,
+                                  _PayrollRecordItem(
+                                    id: 'PR${DateTime.now().millisecondsSinceEpoch}',
+                                    employeeId: employee.id,
+                                    employeeName: employee.name,
+                                    paymentType: employee.paymentType,
+                                    baseSalary: baseSalary,
+                                    overtime: overtime,
+                                    bonus: bonus,
+                                    deductions: deductions,
+                                    tax: tax,
+                                    payPeriodStart: payPeriodStartController
+                                        .text
+                                        .trim(),
+                                    payPeriodEnd: payPeriodEndController.text
+                                        .trim(),
+                                    payDate: payDateController.text.trim(),
+                                    daysWorked:
+                                        int.tryParse(
+                                          daysWorkedController.text.trim(),
+                                        ) ??
+                                        0,
+                                    hoursWorked:
+                                        double.tryParse(
+                                          hoursWorkedController.text.trim(),
+                                        ) ??
+                                        0,
+                                    notes: notesController.text.trim(),
+                                    status: 'Pending',
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Create Payroll Record'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+
+    baseSalaryController.dispose();
+    overtimeController.dispose();
+    bonusController.dispose();
+    deductionsController.dispose();
+    taxController.dispose();
+    payPeriodStartController.dispose();
+    payPeriodEndController.dispose();
+    payDateController.dispose();
+    daysWorkedController.dispose();
+    hoursWorkedController.dispose();
+    notesController.dispose();
+
+    return created;
   }
 
   Future<_EmployeeItem?> _showEmployeeDialog({_EmployeeItem? existing}) async {
-    final idController = TextEditingController(
-      text:
-          existing?.id ?? 'E${DateTime.now().millisecondsSinceEpoch % 100000}',
+    final firstNameController = TextEditingController(
+      text: existing?.firstName ?? '',
     );
-    final nameController = TextEditingController(text: existing?.name ?? '');
-    String role = existing?.role ?? 'CASHIER';
-    bool active = existing?.active ?? true;
+    final lastNameController = TextEditingController(
+      text: existing?.lastName ?? '',
+    );
+    final emailController = TextEditingController(text: existing?.email ?? '');
+    final phoneController = TextEditingController(text: existing?.phone ?? '');
+    final positionController = TextEditingController(
+      text: existing?.position ?? existing?.role ?? '',
+    );
+    final departmentController = TextEditingController(
+      text: existing?.department ?? '',
+    );
+    String paymentType = existing?.paymentType.isNotEmpty == true
+        ? existing!.paymentType
+        : 'Monthly';
+    final baseSalaryController = TextEditingController(
+      text: existing == null ? '0' : existing.baseSalary.toStringAsFixed(2),
+    );
+    final hireDateController = TextEditingController(
+      text: existing?.hireDate ?? 'mm/dd/yyyy',
+    );
+    final bankAccountController = TextEditingController(
+      text: existing?.bankAccount ?? '',
+    );
+    final addressController = TextEditingController(
+      text: existing?.address ?? '',
+    );
+    final emergencyContactController = TextEditingController(
+      text: existing?.emergencyContact ?? '',
+    );
+    final emergencyPhoneController = TextEditingController(
+      text: existing?.emergencyPhone ?? '',
+    );
+    final notesController = TextEditingController(text: existing?.notes ?? '');
+    final locationOptions = {
+      _storeLocation.trim(),
+      'Main Branch',
+      'Warehouse',
+      'Online',
+    }.where((v) => v.isNotEmpty).toList();
+    final selectedLocations = <String>{
+      ...(existing?.assignedLocations ?? [locationOptions.first]),
+    };
 
-    return showDialog<_EmployeeItem>(
+    final created = await showGeneralDialog<_EmployeeItem>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(existing == null ? 'Add Employee' : 'Edit Employee'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: idController,
-                  decoration: const InputDecoration(labelText: 'ID'),
-                ),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  key: ValueKey<String>(role),
-                  initialValue: role,
-                  items: const [
-                    DropdownMenuItem(value: 'OWNER', child: Text('OWNER')),
-                    DropdownMenuItem(value: 'MANAGER', child: Text('MANAGER')),
-                    DropdownMenuItem(value: 'CASHIER', child: Text('CASHIER')),
-                    DropdownMenuItem(
-                      value: 'TECHNICIAN',
-                      child: Text('TECHNICIAN'),
-                    ),
-                  ],
-                  onChanged: (v) => setLocal(() => role = v ?? role),
-                  decoration: const InputDecoration(labelText: 'Role'),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
-                  value: active,
-                  onChanged: (v) => setLocal(() => active = v),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  _EmployeeItem(
-                    id: idController.text.trim(),
-                    name: nameController.text.trim(),
-                    role: role,
-                    active: active,
+      barrierDismissible: true,
+      barrierLabel: 'AddEmployee',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 760,
+                  height: double.infinity,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              existing == null
+                                  ? 'Add New Employee'
+                                  : 'Edit Employee',
+                              style: const TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'First Name *',
+                                      firstNameController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Last Name *',
+                                      lastNameController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Email *',
+                                      emailController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Phone',
+                                      phoneController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Position *',
+                                      positionController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Department *',
+                                      departmentController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Payment Type *'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          initialValue: paymentType,
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'Monthly',
+                                              child: Text('Monthly'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Hourly',
+                                              child: Text('Hourly'),
+                                            ),
+                                          ],
+                                          onChanged: (v) => setLocal(
+                                            () =>
+                                                paymentType = v ?? paymentType,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Base Salary *',
+                                      baseSalaryController,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Hire Date *',
+                                      hireDateController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Bank Account',
+                                      bankAccountController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              _labeledTextField(
+                                'Address',
+                                addressController,
+                                maxLines: 2,
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Emergency Contact',
+                                      emergencyContactController,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _labeledTextField(
+                                      'Emergency Phone',
+                                      emergencyPhoneController,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              _labeledTextField(
+                                'Notes',
+                                notesController,
+                                maxLines: 3,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text('Assigned Locations'),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: const Color(0xFFE6E2EF),
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: locationOptions
+                                      .map(
+                                        (loc) => FilterChip(
+                                          label: Text(loc),
+                                          selected: selectedLocations.contains(
+                                            loc,
+                                          ),
+                                          onSelected: (selected) {
+                                            setLocal(() {
+                                              if (selected) {
+                                                selectedLocations.add(loc);
+                                              } else {
+                                                selectedLocations.remove(loc);
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final firstName = firstNameController.text
+                                    .trim();
+                                final lastName = lastNameController.text.trim();
+                                final fullName = '$firstName $lastName'.trim();
+                                Navigator.pop(
+                                  context,
+                                  _EmployeeItem(
+                                    id:
+                                        existing?.id ??
+                                        'E${DateTime.now().millisecondsSinceEpoch % 100000}',
+                                    name: fullName.isEmpty
+                                        ? 'Employee'
+                                        : fullName,
+                                    role: positionController.text.trim().isEmpty
+                                        ? 'STAFF'
+                                        : positionController.text
+                                              .trim()
+                                              .toUpperCase(),
+                                    active: existing?.active ?? true,
+                                    firstName: firstName,
+                                    lastName: lastName,
+                                    email: emailController.text.trim(),
+                                    phone: phoneController.text.trim(),
+                                    position: positionController.text.trim(),
+                                    department: departmentController.text
+                                        .trim(),
+                                    paymentType: paymentType,
+                                    baseSalary:
+                                        double.tryParse(
+                                          baseSalaryController.text.trim(),
+                                        ) ??
+                                        0,
+                                    hireDate: hireDateController.text.trim(),
+                                    bankAccount: bankAccountController.text
+                                        .trim(),
+                                    address: addressController.text.trim(),
+                                    emergencyContact: emergencyContactController
+                                        .text
+                                        .trim(),
+                                    emergencyPhone: emergencyPhoneController
+                                        .text
+                                        .trim(),
+                                    notes: notesController.text.trim(),
+                                    assignedLocations: selectedLocations
+                                        .toList(),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(
+                                existing == null
+                                    ? 'Create Employee'
+                                    : 'Update Employee',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-              child: const Text('Save'),
-            ),
-          ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+
+    firstNameController.dispose();
+    lastNameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    positionController.dispose();
+    departmentController.dispose();
+    baseSalaryController.dispose();
+    hireDateController.dispose();
+    bankAccountController.dispose();
+    addressController.dispose();
+    emergencyContactController.dispose();
+    emergencyPhoneController.dispose();
+    notesController.dispose();
+
+    return created;
+  }
+
+  Widget _labeledTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
-      ),
+      ],
     );
   }
 
@@ -4680,58 +10190,799 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<_ServiceJobItem?> _showServiceDialog() async {
     final titleController = TextEditingController();
-    final techController = TextEditingController();
-    bool warranty = false;
+    final skuController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final priceController = TextEditingController(text: '0');
+    bool active = true;
 
-    return showDialog<_ServiceJobItem>(
+    return showGeneralDialog<_ServiceJobItem>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: const Text('Add Service Job'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Job Title'),
-                ),
-                TextField(
-                  controller: techController,
-                  decoration: const InputDecoration(labelText: 'Technician'),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Warranty'),
-                  value: warranty,
-                  onChanged: (v) => setLocal(() => warranty = v),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  _ServiceJobItem(
-                    id: 'SRV${DateTime.now().millisecondsSinceEpoch}',
-                    title: titleController.text.trim(),
-                    technician: techController.text.trim(),
-                    warranty: warranty,
-                    status: 'PENDING',
+      barrierDismissible: true,
+      barrierLabel: 'AddService',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 760,
+                  height: double.infinity,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Add New Service',
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Service Name *'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: titleController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter service name',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text('SKU *'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: skuController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter SKU',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text('Description'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: descriptionController,
+                                maxLines: 3,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter service description',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text('Default Price *'),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: priceController,
+                                keyboardType: TextInputType.number,
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'This is the suggested price. Actual price can be customized at checkout.',
+                                style: TextStyle(color: Color(0xFF7E8495)),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: active,
+                                    onChanged: (v) =>
+                                        setLocal(() => active = v ?? true),
+                                  ),
+                                  const Text(
+                                    'Active (available in POS)',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8F4FB),
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(
+                                  context,
+                                  _ServiceJobItem(
+                                    id: 'SRV${DateTime.now().millisecondsSinceEpoch}',
+                                    title: titleController.text.trim(),
+                                    sku: skuController.text.trim(),
+                                    description: descriptionController.text
+                                        .trim(),
+                                    defaultPrice:
+                                        double.tryParse(
+                                          priceController.text.trim(),
+                                        ) ??
+                                        0,
+                                    active: active,
+                                    technician: '',
+                                    warranty: false,
+                                    status: 'PENDING',
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Create Service'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+  }
+
+  Future<_ServiceJobItem?> _showJobCardDialog() async {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final phoneController = TextEditingController();
+    final emailController = TextEditingController();
+    final scheduledDateController = TextEditingController();
+    final scheduledTimeController = TextEditingController();
+    final durationController = TextEditingController(text: '0');
+    final locationController = TextEditingController();
+    final deviceInfoController = TextEditingController();
+    final discountController = TextEditingController(text: '0');
+    final taxController = TextEditingController(text: '0');
+    final internalNotesController = TextEditingController();
+    final customerNotesController = TextEditingController();
+    final tagsController = TextEditingController();
+
+    final serviceControllers = [TextEditingController()];
+    final materialControllers = [TextEditingController()];
+    String selectedPriority = 'NORMAL';
+    String selectedCustomerId = _customers.isNotEmpty
+        ? _customers.first.id
+        : '';
+
+    if (_customers.isNotEmpty) {
+      final first = _customers.first;
+      phoneController.text = first.phone;
+      emailController.text = first.email;
+    }
+
+    final created = await showGeneralDialog<_ServiceJobItem>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'CreateJobCard',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.white,
+                child: SizedBox(
+                  width: 760,
+                  height: double.infinity,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Create New Job Card',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Basic Information',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: titleController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Title *',
+                                  hintText:
+                                      'e.g., AC Installation, Laptop Repair',
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: descriptionController,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Description',
+                                  hintText: 'Brief description of the job',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Customer Information',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 10),
+                              DropdownButtonFormField<String>(
+                                initialValue: selectedCustomerId.isEmpty
+                                    ? null
+                                    : selectedCustomerId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Customer *',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: _customers
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c.id,
+                                        child: Text(c.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  final selected = _customers.firstWhere(
+                                    (c) => c.id == value,
+                                  );
+                                  setLocal(() {
+                                    selectedCustomerId = value;
+                                    phoneController.text = selected.phone;
+                                    emailController.text = selected.email;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: phoneController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Phone',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: emailController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Email',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Services *',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              ...serviceControllers.map((controller) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: TextField(
+                                    controller: controller,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Service name',
+                                    ),
+                                  ),
+                                );
+                              }),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    setLocal(() {
+                                      serviceControllers.add(
+                                        TextEditingController(),
+                                      );
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFB227D6),
+                                    side: const BorderSide(
+                                      color: Color(0xFFB227D6),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add Service'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text('Materials (Optional)'),
+                              const SizedBox(height: 8),
+                              ...materialControllers.map((controller) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: TextField(
+                                    controller: controller,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Material name',
+                                    ),
+                                  ),
+                                );
+                              }),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    setLocal(() {
+                                      materialControllers.add(
+                                        TextEditingController(),
+                                      );
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFB227D6),
+                                    side: const BorderSide(
+                                      color: Color(0xFFB227D6),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add Material'),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Scheduling & Assignment',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: selectedPriority,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Priority',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 'NORMAL',
+                                          child: Text('Normal'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'LOW',
+                                          child: Text('Low'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'MEDIUM',
+                                          child: Text('Medium'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'HIGH',
+                                          child: Text('High'),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        setLocal(() {
+                                          selectedPriority = value ?? 'NORMAL';
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: scheduledDateController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Scheduled Date',
+                                        hintText: 'mm/dd/yyyy',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: scheduledTimeController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Scheduled Time',
+                                        hintText: '--:--',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: durationController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText:
+                                            'Estimated Duration (minutes)',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: locationController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Location',
+                                        hintText: 'e.g., Workshop, On-site',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: deviceInfoController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Device/Asset Info',
+                                        hintText: 'model, serial number, etc.',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Cost Adjustments',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: discountController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Discount',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: taxController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Tax',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF7F3FB),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFE6E2EF),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _summaryLine('Services', 0),
+                                    _summaryLine('Materials', 0),
+                                    _summaryLine(
+                                      'Discount',
+                                      -(double.tryParse(
+                                            discountController.text.trim(),
+                                          ) ??
+                                          0),
+                                    ),
+                                    _summaryLine(
+                                      'Tax',
+                                      double.tryParse(
+                                            taxController.text.trim(),
+                                          ) ??
+                                          0,
+                                    ),
+                                    const Divider(),
+                                    Row(
+                                      children: [
+                                        const Text(
+                                          'Total',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          _money(
+                                            (double.tryParse(
+                                                      taxController.text.trim(),
+                                                    ) ??
+                                                    0) -
+                                                (double.tryParse(
+                                                      discountController.text
+                                                          .trim(),
+                                                    ) ??
+                                                    0),
+                                          ),
+                                          style: const TextStyle(
+                                            color: Color(0xFFB227D6),
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Notes',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: internalNotesController,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Internal Notes',
+                                  hintText: 'Notes for internal use only',
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: customerNotesController,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Customer Notes',
+                                  hintText: 'Notes visible to customer',
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: tagsController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Tags',
+                                        hintText: 'Add a tag',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  OutlinedButton(
+                                    onPressed: () {},
+                                    child: const Text('Add'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Color(0xFFE6E2EF)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                final selectedCustomer = _customers.firstWhere(
+                                  (c) => c.id == selectedCustomerId,
+                                  orElse: () => _CustomerItem(
+                                    id: 'WALKIN',
+                                    name: 'Walk-in Customer',
+                                    phone: phoneController.text.trim(),
+                                    email: emailController.text.trim(),
+                                  ),
+                                );
+
+                                final services = serviceControllers
+                                    .map((c) => c.text.trim())
+                                    .where((s) => s.isNotEmpty)
+                                    .toList();
+                                final materials = materialControllers
+                                    .map((c) => c.text.trim())
+                                    .where((s) => s.isNotEmpty)
+                                    .toList();
+                                final discount =
+                                    double.tryParse(
+                                      discountController.text.trim(),
+                                    ) ??
+                                    0;
+                                final tax =
+                                    double.tryParse(
+                                      taxController.text.trim(),
+                                    ) ??
+                                    0;
+                                final total = (0 - discount) + tax;
+
+                                Navigator.pop(
+                                  context,
+                                  _ServiceJobItem(
+                                    id: 'JOB${DateTime.now().millisecondsSinceEpoch}',
+                                    title: titleController.text.trim().isEmpty
+                                        ? 'Service Job'
+                                        : titleController.text.trim(),
+                                    sku:
+                                        'JC-${DateTime.now().millisecondsSinceEpoch % 100000}',
+                                    description: descriptionController.text
+                                        .trim(),
+                                    defaultPrice: total,
+                                    active: true,
+                                    technician: '',
+                                    warranty: false,
+                                    status: 'OPEN',
+                                    priority: selectedPriority,
+                                    customerName: selectedCustomer.name,
+                                    customerPhone: phoneController.text.trim(),
+                                    customerEmail: emailController.text.trim(),
+                                    scheduledDate: scheduledDateController.text
+                                        .trim(),
+                                    scheduledTime: scheduledTimeController.text
+                                        .trim(),
+                                    estimatedDurationMinutes: durationController
+                                        .text
+                                        .trim(),
+                                    location: locationController.text.trim(),
+                                    deviceInfo: deviceInfoController.text
+                                        .trim(),
+                                    discount: discount,
+                                    taxAmount: tax,
+                                    internalNotes: internalNotesController.text
+                                        .trim(),
+                                    customerNotes: customerNotesController.text
+                                        .trim(),
+                                    services: services,
+                                    materials: materials,
+                                    tags: tagsController.text.trim(),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB227D6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Create Job Card'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+
+    titleController.dispose();
+    descriptionController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    scheduledDateController.dispose();
+    scheduledTimeController.dispose();
+    durationController.dispose();
+    locationController.dispose();
+    deviceInfoController.dispose();
+    discountController.dispose();
+    taxController.dispose();
+    internalNotesController.dispose();
+    customerNotesController.dispose();
+    tagsController.dispose();
+    for (final controller in serviceControllers) {
+      controller.dispose();
+    }
+    for (final controller in materialControllers) {
+      controller.dispose();
+    }
+
+    return created;
+  }
+
+  Widget _summaryLine(String label, double value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(color: Color(0xFF666F87))),
+          const Spacer(),
+          Text(_money(value), style: const TextStyle(color: Color(0xFF5A6480))),
+        ],
       ),
     );
   }
@@ -4790,55 +11041,368 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<_PurchaseOrderItem?> _showPurchaseOrderDialog() async {
-    final supplierController = TextEditingController();
-    final itemsController = TextEditingController(text: '1');
-    final amountController = TextEditingController(text: '0');
+    final notesController = TextEditingController();
+    final expectedDateController = TextEditingController(
+      text: DateTime.now()
+          .add(const Duration(days: 7))
+          .toIso8601String()
+          .split('T')
+          .first,
+    );
+    final suppliers = _suppliers.isEmpty
+        ? [
+            _SupplierItem(
+              id: 'SUP-FALLBACK',
+              name: 'Astronauts',
+              contact: '',
+              email: '',
+            ),
+          ]
+        : _suppliers;
 
-    return showDialog<_PurchaseOrderItem>(
+    return showGeneralDialog<_PurchaseOrderItem>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create Purchase Order'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: supplierController,
-                decoration: const InputDecoration(labelText: 'Supplier'),
+      barrierDismissible: true,
+      barrierLabel: 'CreateOrder',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        String selectedSupplier = suppliers.first.name;
+        final items = <Map<String, dynamic>>[
+          {
+            'productId': _products.isEmpty ? '' : _products.first.id,
+            'qtyController': TextEditingController(text: '1'),
+            'priceController': TextEditingController(
+              text: _products.isEmpty
+                  ? '0'
+                  : _products.first.price.toStringAsFixed(2),
+            ),
+          },
+        ];
+
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            double rowTotal(Map<String, dynamic> row) {
+              final qty =
+                  int.tryParse(
+                    (row['qtyController'] as TextEditingController).text.trim(),
+                  ) ??
+                  0;
+              final unitPrice =
+                  double.tryParse(
+                    (row['priceController'] as TextEditingController).text
+                        .trim(),
+                  ) ??
+                  0;
+              return qty * unitPrice;
+            }
+
+            double grandTotal() {
+              return items.fold<double>(0, (sum, row) => sum + rowTotal(row));
+            }
+
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 120,
+                vertical: 40,
               ),
-              TextField(
-                controller: itemsController,
-                decoration: const InputDecoration(labelText: 'Items Count'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(labelText: 'Total Amount'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(
-                context,
-                _PurchaseOrderItem(
-                  id: 'PO${DateTime.now().millisecondsSinceEpoch}',
-                  supplier: supplierController.text.trim(),
-                  itemsCount: int.tryParse(itemsController.text.trim()) ?? 0,
-                  amount: double.tryParse(amountController.text.trim()) ?? 0,
+              child: SizedBox(
+                width: 860,
+                height: 700,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFFE6E2EF)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Create Order',
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Supplier *'),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedSupplier,
+                              items: suppliers
+                                  .map(
+                                    (s) => DropdownMenuItem(
+                                      value: s.name,
+                                      child: Text(s.name),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v == null) return;
+                                setLocal(() => selectedSupplier = v);
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                const Text('Items *'),
+                                const Spacer(),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setLocal(() {
+                                      items.add({
+                                        'productId': _products.isEmpty
+                                            ? ''
+                                            : _products.first.id,
+                                        'qtyController': TextEditingController(
+                                          text: '1',
+                                        ),
+                                        'priceController':
+                                            TextEditingController(
+                                              text: _products.isEmpty
+                                                  ? '0'
+                                                  : _products.first.price
+                                                        .toStringAsFixed(2),
+                                            ),
+                                      });
+                                    });
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Item'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: const Color(0xFFE6E2EF),
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                children: items.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final row = entry.value;
+                                  final qtyController =
+                                      row['qtyController']
+                                          as TextEditingController;
+                                  final priceController =
+                                      row['priceController']
+                                          as TextEditingController;
+                                  final productId = row['productId'] as String;
+                                  final selectedProduct = _products.firstWhere(
+                                    (p) => p.id == productId,
+                                    orElse: () => _products.isEmpty
+                                        ? _ProductItem(
+                                            id: '',
+                                            name: 'No Product',
+                                            category: '',
+                                            price: 0,
+                                            stock: 0,
+                                            minStock: 0,
+                                          )
+                                        : _products.first,
+                                  );
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 4,
+                                          child:
+                                              DropdownButtonFormField<String>(
+                                                initialValue:
+                                                    selectedProduct.id,
+                                                items: _products
+                                                    .map(
+                                                      (p) => DropdownMenuItem(
+                                                        value: p.id,
+                                                        child: Text(
+                                                          '${p.name} (${p.id})',
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                                onChanged: (v) {
+                                                  if (v == null) return;
+                                                  final product = _products
+                                                      .firstWhere(
+                                                        (p) => p.id == v,
+                                                      );
+                                                  setLocal(() {
+                                                    row['productId'] = v;
+                                                    priceController.text =
+                                                        product.price
+                                                            .toStringAsFixed(2);
+                                                  });
+                                                },
+                                                decoration:
+                                                    const InputDecoration(
+                                                      labelText: 'Product',
+                                                    ),
+                                              ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        SizedBox(
+                                          width: 100,
+                                          child: TextField(
+                                            controller: qtyController,
+                                            keyboardType: TextInputType.number,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Quantity',
+                                            ),
+                                            onChanged: (_) => setLocal(() {}),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        SizedBox(
+                                          width: 120,
+                                          child: TextField(
+                                            controller: priceController,
+                                            keyboardType: TextInputType.number,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Unit Price',
+                                            ),
+                                            onChanged: (_) => setLocal(() {}),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        SizedBox(
+                                          width: 120,
+                                          child: TextFormField(
+                                            initialValue: rowTotal(
+                                              row,
+                                            ).toStringAsFixed(2),
+                                            enabled: false,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Total',
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          onPressed: items.length <= 1
+                                              ? null
+                                              : () => setLocal(
+                                                  () => items.removeAt(index),
+                                                ),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Color(0xFFE35D5D),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text('Expected Delivery Date'),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: expectedDateController,
+                              decoration: const InputDecoration(
+                                hintText: 'YYYY-MM-DD',
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text('Notes'),
+                            const SizedBox(height: 6),
+                            TextField(controller: notesController, maxLines: 4),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8F4FB),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE6E2EF)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Spacer(),
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () {
+                              final total = grandTotal();
+                              final count = items.fold<int>(
+                                0,
+                                (sum, row) =>
+                                    sum +
+                                    (int.tryParse(
+                                          (row['qtyController']
+                                                  as TextEditingController)
+                                              .text
+                                              .trim(),
+                                        ) ??
+                                        0),
+                              );
+                              Navigator.pop(
+                                context,
+                                _PurchaseOrderItem(
+                                  id: 'PO${DateTime.now().millisecondsSinceEpoch}',
+                                  supplier: selectedSupplier,
+                                  itemsCount: count,
+                                  amount: total,
+                                  status: 'PENDING',
+                                  expectedDate: expectedDateController.text
+                                      .trim(),
+                                  notes: notesController.text.trim(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFB227D6),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Create Order'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
     );
   }
 
@@ -4881,48 +11445,91 @@ class _MetricCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final String subtitle;
+  final String deltaText;
+  final String deltaHint;
+  final Color deltaColor;
 
   const _MetricCard({
     required this.title,
     required this.value,
     required this.icon,
+    this.subtitle = '',
+    this.deltaText = '+0.0%',
+    this.deltaHint = 'vs last period',
+    this.deltaColor = const Color(0xFF0B9F69),
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 270,
+      width: 300,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0EBFF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: const Color(0xFF5B35D5)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Color(0xFF7A8093),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7EBFA),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: const Color(0xFFB227D6), size: 20),
+                  ),
+                ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 42,
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
+                  color: Color(0xFF242B3D),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
-              ),
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF646B7C),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
-              const Text(
-                '+0% vs last period',
-                style: TextStyle(color: Color(0xFF0B9F69)),
+              RichText(
+                text: TextSpan(
+                  text: deltaText,
+                  style: TextStyle(
+                    color: deltaColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '  $deltaHint',
+                      style: const TextStyle(
+                        color: Color(0xFF7A8093),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -5013,8 +11620,11 @@ class _CreditPaymentItem {
 class _CustomerItem {
   final String id;
   String name;
+  String vehicleNumber;
   String phone;
   String email;
+  String address;
+  String notes;
   double creditLimit;
   double currentBalance;
   int loyaltyPoints;
@@ -5022,8 +11632,11 @@ class _CustomerItem {
   _CustomerItem({
     required this.id,
     required this.name,
+    this.vehicleNumber = '',
     required this.phone,
     required this.email,
+    this.address = '',
+    this.notes = '',
     this.creditLimit = 0,
     this.currentBalance = 0,
     this.loyaltyPoints = 0,
@@ -5033,8 +11646,11 @@ class _CustomerItem {
     return {
       'id': id,
       'name': name,
+      'vehicleNumber': vehicleNumber,
       'phone': phone,
       'email': email,
+      'address': address,
+      'notes': notes,
       'creditLimit': creditLimit,
       'currentBalance': currentBalance,
       'loyaltyPoints': loyaltyPoints,
@@ -5045,11 +11661,158 @@ class _CustomerItem {
     return _CustomerItem(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
+      vehicleNumber: (json['vehicleNumber'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
+      notes: (json['notes'] ?? '').toString(),
       creditLimit: (json['creditLimit'] as num?)?.toDouble() ?? 0,
       currentBalance: (json['currentBalance'] as num?)?.toDouble() ?? 0,
       loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class _AttendanceRecordItem {
+  final String id;
+  String employeeId;
+  String employeeName;
+  DateTime date;
+  String status;
+  String clockIn;
+  String clockOut;
+  double regularHours;
+  double overtimeHours;
+  String notes;
+  bool isHoliday;
+
+  _AttendanceRecordItem({
+    required this.id,
+    required this.employeeId,
+    required this.employeeName,
+    required this.date,
+    required this.status,
+    required this.clockIn,
+    required this.clockOut,
+    required this.regularHours,
+    required this.overtimeHours,
+    this.notes = '',
+    this.isHoliday = false,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'employeeId': employeeId,
+      'employeeName': employeeName,
+      'date': date.toIso8601String(),
+      'status': status,
+      'clockIn': clockIn,
+      'clockOut': clockOut,
+      'regularHours': regularHours,
+      'overtimeHours': overtimeHours,
+      'notes': notes,
+      'isHoliday': isHoliday,
+    };
+  }
+
+  factory _AttendanceRecordItem.fromJson(Map<String, dynamic> json) {
+    return _AttendanceRecordItem(
+      id: (json['id'] ?? '').toString(),
+      employeeId: (json['employeeId'] ?? '').toString(),
+      employeeName: (json['employeeName'] ?? '').toString(),
+      date:
+          DateTime.tryParse((json['date'] ?? '').toString()) ?? DateTime.now(),
+      status: (json['status'] ?? 'Present').toString(),
+      clockIn: (json['clockIn'] ?? '--:--').toString(),
+      clockOut: (json['clockOut'] ?? '--:--').toString(),
+      regularHours: (json['regularHours'] as num?)?.toDouble() ?? 0,
+      overtimeHours: (json['overtimeHours'] as num?)?.toDouble() ?? 0,
+      notes: (json['notes'] ?? '').toString(),
+      isHoliday: json['isHoliday'] as bool? ?? false,
+    );
+  }
+}
+
+class _PayrollRecordItem {
+  final String id;
+  String employeeId;
+  String employeeName;
+  String paymentType;
+  double baseSalary;
+  double overtime;
+  double bonus;
+  double deductions;
+  double tax;
+  String payPeriodStart;
+  String payPeriodEnd;
+  String payDate;
+  int daysWorked;
+  double hoursWorked;
+  String notes;
+  String status;
+
+  _PayrollRecordItem({
+    required this.id,
+    required this.employeeId,
+    required this.employeeName,
+    required this.paymentType,
+    required this.baseSalary,
+    this.overtime = 0,
+    this.bonus = 0,
+    this.deductions = 0,
+    this.tax = 0,
+    required this.payPeriodStart,
+    required this.payPeriodEnd,
+    required this.payDate,
+    this.daysWorked = 0,
+    this.hoursWorked = 0,
+    this.notes = '',
+    this.status = 'Pending',
+  });
+
+  double get grossPay => baseSalary + overtime + bonus;
+  double get netPay => grossPay - deductions - tax;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'employeeId': employeeId,
+      'employeeName': employeeName,
+      'paymentType': paymentType,
+      'baseSalary': baseSalary,
+      'overtime': overtime,
+      'bonus': bonus,
+      'deductions': deductions,
+      'tax': tax,
+      'payPeriodStart': payPeriodStart,
+      'payPeriodEnd': payPeriodEnd,
+      'payDate': payDate,
+      'daysWorked': daysWorked,
+      'hoursWorked': hoursWorked,
+      'notes': notes,
+      'status': status,
+    };
+  }
+
+  factory _PayrollRecordItem.fromJson(Map<String, dynamic> json) {
+    return _PayrollRecordItem(
+      id: (json['id'] ?? '').toString(),
+      employeeId: (json['employeeId'] ?? '').toString(),
+      employeeName: (json['employeeName'] ?? '').toString(),
+      paymentType: (json['paymentType'] ?? 'Monthly').toString(),
+      baseSalary: (json['baseSalary'] as num?)?.toDouble() ?? 0,
+      overtime: (json['overtime'] as num?)?.toDouble() ?? 0,
+      bonus: (json['bonus'] as num?)?.toDouble() ?? 0,
+      deductions: (json['deductions'] as num?)?.toDouble() ?? 0,
+      tax: (json['tax'] as num?)?.toDouble() ?? 0,
+      payPeriodStart: (json['payPeriodStart'] ?? '').toString(),
+      payPeriodEnd: (json['payPeriodEnd'] ?? '').toString(),
+      payDate: (json['payDate'] ?? '').toString(),
+      daysWorked: (json['daysWorked'] as num?)?.toInt() ?? 0,
+      hoursWorked: (json['hoursWorked'] as num?)?.toDouble() ?? 0,
+      notes: (json['notes'] ?? '').toString(),
+      status: (json['status'] ?? 'Pending').toString(),
     );
   }
 }
@@ -5059,24 +11822,97 @@ class _EmployeeItem {
   String name;
   String role;
   bool active;
+  String firstName;
+  String lastName;
+  String email;
+  String phone;
+  String position;
+  String department;
+  String paymentType;
+  double baseSalary;
+  String hireDate;
+  String bankAccount;
+  String address;
+  String emergencyContact;
+  String emergencyPhone;
+  String notes;
+  List<String> assignedLocations;
 
   _EmployeeItem({
     required this.id,
     required this.name,
     required this.role,
     required this.active,
+    this.firstName = '',
+    this.lastName = '',
+    this.email = '',
+    this.phone = '',
+    this.position = '',
+    this.department = '',
+    this.paymentType = 'Monthly',
+    this.baseSalary = 0,
+    this.hireDate = '',
+    this.bankAccount = '',
+    this.address = '',
+    this.emergencyContact = '',
+    this.emergencyPhone = '',
+    this.notes = '',
+    this.assignedLocations = const [],
   });
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'role': role, 'active': active};
+    return {
+      'id': id,
+      'name': name,
+      'role': role,
+      'active': active,
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'phone': phone,
+      'position': position,
+      'department': department,
+      'paymentType': paymentType,
+      'baseSalary': baseSalary,
+      'hireDate': hireDate,
+      'bankAccount': bankAccount,
+      'address': address,
+      'emergencyContact': emergencyContact,
+      'emergencyPhone': emergencyPhone,
+      'notes': notes,
+      'assignedLocations': assignedLocations,
+    };
   }
 
   factory _EmployeeItem.fromJson(Map<String, dynamic> json) {
+    final name = (json['name'] ?? '').toString();
+    final splitName = name.trim().split(RegExp(r'\s+'));
+    final inferredFirst = splitName.isEmpty ? '' : splitName.first;
+    final inferredLast = splitName.length <= 1
+        ? ''
+        : splitName.sublist(1).join(' ');
     return _EmployeeItem(
       id: (json['id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
+      name: name,
       role: (json['role'] ?? 'CASHIER').toString(),
       active: json['active'] as bool? ?? true,
+      firstName: (json['firstName'] ?? inferredFirst).toString(),
+      lastName: (json['lastName'] ?? inferredLast).toString(),
+      email: (json['email'] ?? '').toString(),
+      phone: (json['phone'] ?? '').toString(),
+      position: (json['position'] ?? '').toString(),
+      department: (json['department'] ?? '').toString(),
+      paymentType: (json['paymentType'] ?? 'Monthly').toString(),
+      baseSalary: (json['baseSalary'] as num?)?.toDouble() ?? 0,
+      hireDate: (json['hireDate'] ?? '').toString(),
+      bankAccount: (json['bankAccount'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
+      emergencyContact: (json['emergencyContact'] ?? '').toString(),
+      emergencyPhone: (json['emergencyPhone'] ?? '').toString(),
+      notes: (json['notes'] ?? '').toString(),
+      assignedLocations: (json['assignedLocations'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }
@@ -5210,25 +12046,85 @@ class _CouponItem {
 class _ServiceJobItem {
   final String id;
   String title;
+  String sku;
+  String description;
+  double defaultPrice;
+  bool active;
   String technician;
   bool warranty;
   String status;
+  String priority;
+  String customerName;
+  String customerPhone;
+  String customerEmail;
+  String scheduledDate;
+  String scheduledTime;
+  String estimatedDurationMinutes;
+  String location;
+  String deviceInfo;
+  double discount;
+  double taxAmount;
+  String internalNotes;
+  String customerNotes;
+  List<String> services;
+  List<String> materials;
+  String tags;
 
   _ServiceJobItem({
     required this.id,
     required this.title,
+    this.sku = '',
+    this.description = '',
+    this.defaultPrice = 0,
+    this.active = true,
     required this.technician,
     required this.warranty,
     required this.status,
+    this.priority = 'NORMAL',
+    this.customerName = '',
+    this.customerPhone = '',
+    this.customerEmail = '',
+    this.scheduledDate = '',
+    this.scheduledTime = '',
+    this.estimatedDurationMinutes = '',
+    this.location = '',
+    this.deviceInfo = '',
+    this.discount = 0,
+    this.taxAmount = 0,
+    this.internalNotes = '',
+    this.customerNotes = '',
+    this.services = const [],
+    this.materials = const [],
+    this.tags = '',
   });
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'title': title,
+      'sku': sku,
+      'description': description,
+      'defaultPrice': defaultPrice,
+      'active': active,
       'technician': technician,
       'warranty': warranty,
       'status': status,
+      'priority': priority,
+      'customerName': customerName,
+      'customerPhone': customerPhone,
+      'customerEmail': customerEmail,
+      'scheduledDate': scheduledDate,
+      'scheduledTime': scheduledTime,
+      'estimatedDurationMinutes': estimatedDurationMinutes,
+      'location': location,
+      'deviceInfo': deviceInfo,
+      'discount': discount,
+      'taxAmount': taxAmount,
+      'internalNotes': internalNotes,
+      'customerNotes': customerNotes,
+      'services': services,
+      'materials': materials,
+      'tags': tags,
     };
   }
 
@@ -5236,9 +12132,34 @@ class _ServiceJobItem {
     return _ServiceJobItem(
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
+      sku: (json['sku'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      defaultPrice: (json['defaultPrice'] as num?)?.toDouble() ?? 0,
+      active: json['active'] as bool? ?? true,
       technician: (json['technician'] ?? '').toString(),
       warranty: json['warranty'] as bool? ?? false,
       status: (json['status'] ?? 'PENDING').toString(),
+      priority: (json['priority'] ?? 'NORMAL').toString(),
+      customerName: (json['customerName'] ?? '').toString(),
+      customerPhone: (json['customerPhone'] ?? '').toString(),
+      customerEmail: (json['customerEmail'] ?? '').toString(),
+      scheduledDate: (json['scheduledDate'] ?? '').toString(),
+      scheduledTime: (json['scheduledTime'] ?? '').toString(),
+      estimatedDurationMinutes: (json['estimatedDurationMinutes'] ?? '')
+          .toString(),
+      location: (json['location'] ?? '').toString(),
+      deviceInfo: (json['deviceInfo'] ?? '').toString(),
+      discount: (json['discount'] as num?)?.toDouble() ?? 0,
+      taxAmount: (json['taxAmount'] as num?)?.toDouble() ?? 0,
+      internalNotes: (json['internalNotes'] ?? '').toString(),
+      customerNotes: (json['customerNotes'] ?? '').toString(),
+      services: (json['services'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      materials: (json['materials'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      tags: (json['tags'] ?? '').toString(),
     );
   }
 }
@@ -5373,12 +12294,18 @@ class _PurchaseOrderItem {
   final String supplier;
   final int itemsCount;
   final double amount;
+  final String status;
+  final String expectedDate;
+  final String notes;
 
   _PurchaseOrderItem({
     required this.id,
     required this.supplier,
     required this.itemsCount,
     required this.amount,
+    this.status = 'PENDING',
+    this.expectedDate = '',
+    this.notes = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -5387,6 +12314,9 @@ class _PurchaseOrderItem {
       'supplier': supplier,
       'itemsCount': itemsCount,
       'amount': amount,
+      'status': status,
+      'expectedDate': expectedDate,
+      'notes': notes,
     };
   }
 
@@ -5396,6 +12326,9 @@ class _PurchaseOrderItem {
       supplier: (json['supplier'] ?? '').toString(),
       itemsCount: (json['itemsCount'] as num?)?.toInt() ?? 0,
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      status: (json['status'] ?? 'PENDING').toString(),
+      expectedDate: (json['expectedDate'] ?? '').toString(),
+      notes: (json['notes'] ?? '').toString(),
     );
   }
 }
