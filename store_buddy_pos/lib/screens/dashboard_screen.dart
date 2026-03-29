@@ -164,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_PayrollRecordItem> _payrollRecords = [];
   final List<_SyncItem> _syncQueue = [];
   final Map<String, List<_CreditPaymentItem>> _customerCreditPayments = {};
+  final Map<String, List<_CreditSaleEntry>> _customerCreditSales = {};
 
   final Map<String, int> _cart = {};
   String? _selectedCustomerId;
@@ -474,6 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   domain.Product _toDomainProduct(_ProductItem item) {
     final tenantId = _activeTenantId ?? 'local';
+    final normalizedUnit = item.measureUnit.trim().toUpperCase();
     return domain.Product(
       id: item.id,
       tenantId: tenantId,
@@ -484,7 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       costPrice: null,
       category: item.category,
       type: 'PRODUCT',
-      unitOfMeasure: 'PIECE',
+      unitOfMeasure: normalizedUnit.isEmpty ? 'PIECE' : normalizedUnit,
       stock: item.stock.toDouble(),
       minStock: item.minStock.toDouble(),
       locationId: null,
@@ -503,6 +505,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       stock: p.stock.toInt(),
       minStock: p.minStock.toInt(),
       barcode: p.barcode ?? p.id,
+      measureUnit: p.unitOfMeasure,
     );
   }
 
@@ -718,6 +721,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _money(double amount) => '$_currency ${amount.toStringAsFixed(2)}';
+
+  bool _isCreditPaymentMethod(String paymentMethod) {
+    return paymentMethod == 'CREDIT' || paymentMethod == 'INSTALLMENT';
+  }
+
+  void _applyCreditPaymentToSales(String customerId, double amount) {
+    final sales = _customerCreditSales[customerId];
+    if (sales == null || sales.isEmpty || amount <= 0) {
+      return;
+    }
+
+    var remaining = amount;
+    for (final sale in sales) {
+      if (remaining <= 0) break;
+      if (sale.outstandingAmount <= 0) continue;
+
+      final applied = remaining >= sale.outstandingAmount
+          ? sale.outstandingAmount
+          : remaining;
+      sale.outstandingAmount = (sale.outstandingAmount - applied).clamp(
+        0,
+        double.infinity,
+      );
+      remaining -= applied;
+    }
+  }
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -1033,7 +1062,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ElevatedButton(
             onPressed: () {
               final amount = double.tryParse(amountController.text.trim());
-              if (amount == null || amount <= 0) return;
+              if (amount == null || amount <= 0) {
+                return;
+              }
+              Navigator.pop(context, amount);
             },
             child: const Text('Record Payment'),
           ),
@@ -1061,6 +1093,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _customerCreditPayments
           .putIfAbsent(customer.id, () => [])
           .insert(0, payment);
+      _applyCreditPaymentToSales(customer.id, paymentAmount);
     });
     await _persistWorkspaceData();
 
@@ -1103,6 +1136,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       subtitle: Text(
                         '${item.createdAt.toLocal()}${item.note.isEmpty ? '' : ' • ${item.note}'}',
                       ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCustomerCreditSalesHistory(_CustomerItem customer) async {
+    final items = _customerCreditSales[customer.id] ?? const [];
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Credit Sales • ${customer.name}'),
+        content: SizedBox(
+          width: 680,
+          height: 420,
+          child: items.isEmpty
+              ? const Center(child: Text('No credit sales recorded yet.'))
+              : ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return ExpansionTile(
+                      title: Text(
+                        '${item.saleId} • Outstanding ${_money(item.outstandingAmount)}',
+                      ),
+                      subtitle: Text(
+                        '${item.createdAt.toLocal()} • Total ${_money(item.total)} • Paid ${_money(item.amountPaidOnSale)}',
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Phone: ${item.customerPhone}'),
+                              Text(
+                                'Address: ${item.customerAddress.isEmpty ? 'N/A' : item.customerAddress}',
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Purchased Items',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              ...item.items.map((line) => Text('• $line')),
+                            ],
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -1631,6 +1722,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         (key, value) =>
             MapEntry(key, value.map((item) => item.toJson()).toList()),
       ),
+      'customerCreditSales': _customerCreditSales.map(
+        (key, value) =>
+            MapEntry(key, value.map((item) => item.toJson()).toList()),
+      ),
       'settings': {
         'companyName': _companyName,
         'taxRate': _taxRate,
@@ -1761,6 +1856,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       .toList(),
                 ),
               );
+      final creditSalesMap =
+          (decoded['customerCreditSales'] as Map<String, dynamic>? ?? {}).map(
+            (key, value) => MapEntry(
+              key,
+              (value as List<dynamic>)
+                  .map(
+                    (e) =>
+                        _CreditSaleEntry.fromJson(Map<String, dynamic>.from(e)),
+                  )
+                  .toList(),
+            ),
+          );
 
       final settings = Map<String, dynamic>.from(decoded['settings'] ?? {});
 
@@ -1849,6 +1956,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _customerCreditPayments
           ..clear()
           ..addAll(creditPaymentsMap);
+        _customerCreditSales
+          ..clear()
+          ..addAll(creditSalesMap);
 
         _companyName = settings['companyName'] ?? _companyName;
         _taxRate = settings['taxRate'] ?? _taxRate;
@@ -3186,6 +3296,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? 'CASH'
         : _paymentMethodController.text;
     final posCategories = ['All Categories', ..._productCategories];
+    final selectedCustomer = _customers.firstWhere(
+      (c) => c.id == _selectedCustomerId,
+      orElse: () => _customers.first,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -3583,36 +3697,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Customer (Optional)',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Customer',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final customer = await _showCustomerDialog();
+                                  if (customer == null) return;
+
+                                  setState(() {
+                                    _customers.add(customer);
+                                    _selectedCustomerId = customer.id;
+                                  });
+                                  await _persistWorkspaceData();
+
+                                  if (_customerRepository != null) {
+                                    await _customerRepository!.insertCustomer(
+                                      _toDomainCustomer(customer),
+                                    );
+                                    await _refreshPendingSyncQueue();
+                                    await _triggerRealtimeSync(
+                                      action: 'INSERT',
+                                      module: 'customers',
+                                      reference: customer.id,
+                                    );
+                                  } else {
+                                    await _enqueueSync(
+                                      'INSERT',
+                                      'customers',
+                                      customer.id,
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.person_add_alt_1),
+                                label: const Text('Add Customer'),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          TextField(
-                            controller: _posCustomerSearchController,
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedCustomer.id,
                             decoration: const InputDecoration(
-                              hintText:
-                                  'Search customer by name, vehicle number...',
                               border: OutlineInputBorder(),
                               isDense: true,
                             ),
+                            items: _customers
+                                .map(
+                                  (customer) => DropdownMenuItem(
+                                    value: customer.id,
+                                    child: Text(
+                                      '${customer.name} (${customer.phone.isEmpty ? 'N/A' : customer.phone})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                _selectedCustomerId = value;
+                              });
+                            },
                           ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _posCustomerNameController,
-                            decoration: const InputDecoration(
-                              hintText: 'Customer Name (Optional)',
-                              border: OutlineInputBorder(),
-                              isDense: true,
+                          const SizedBox(height: 6),
+                          Text(
+                            'Address: ${selectedCustomer.address.isEmpty ? 'N/A' : selectedCustomer.address}',
+                            style: const TextStyle(
+                              color: Color(0xFF7E8495),
+                              fontSize: 12,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _posCustomerPhoneController,
-                            decoration: const InputDecoration(
-                              hintText: 'Phone Number (Optional)',
-                              border: OutlineInputBorder(),
-                              isDense: true,
+                          Text(
+                            'Credit: ${_money(selectedCustomer.currentBalance)} / Limit: ${selectedCustomer.creditLimit <= 0 ? 'No limit' : _money(selectedCustomer.creditLimit)}',
+                            style: const TextStyle(
+                              color: Color(0xFF7E8495),
+                              fontSize: 12,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -3626,20 +3790,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _posPaymentButton('CASH', 'Cash', paymentMethod),
                               const SizedBox(width: 8),
                               _posPaymentButton('CARD', 'Card', paymentMethod),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _posPaymentButton(
-                                'CHEQUE',
-                                'Cheque',
-                                paymentMethod,
-                              ),
                               const SizedBox(width: 8),
                               _posPaymentButton(
-                                'INSTALLMENT',
-                                'Installment',
+                                'CREDIT',
+                                'Credit',
                                 paymentMethod,
                               ),
                             ],
@@ -3666,17 +3820,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               onPressed: cartItems.isEmpty
                                   ? null
                                   : () async {
-                                      final selectedCustomer = _customers
-                                          .firstWhere(
-                                            (c) => c.id == _selectedCustomerId,
-                                            orElse: () => _customers.first,
+                                      final paidAmount =
+                                          double.tryParse(
+                                            _amountPaidController.text.trim(),
+                                          ) ??
+                                          0;
+                                      final sanitizedPaidAmount = paidAmount
+                                          .clamp(0, grandTotal)
+                                          .toDouble();
+                                      final isCreditSale =
+                                          _isCreditPaymentMethod(paymentMethod);
+                                      final outstandingAmount = isCreditSale
+                                          ? (grandTotal - sanitizedPaidAmount)
+                                                .clamp(0, double.infinity)
+                                                .toDouble()
+                                          : 0.0;
+
+                                      if (isCreditSale &&
+                                          selectedCustomer.id == 'C001') {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Select a registered customer for credit sales.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      if (isCreditSale &&
+                                          selectedCustomer.creditLimit > 0) {
+                                        final nextBalance =
+                                            selectedCustomer.currentBalance +
+                                            outstandingAmount;
+                                        if (nextBalance >
+                                            selectedCustomer.creditLimit) {
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Credit limit exceeded. Current: ${_money(selectedCustomer.currentBalance)}, Limit: ${_money(selectedCustomer.creditLimit)}',
+                                              ),
+                                            ),
                                           );
-                                      final enteredName =
-                                          _posCustomerNameController.text
-                                              .trim();
-                                      final customerName = enteredName.isEmpty
-                                          ? selectedCustomer.name
-                                          : enteredName;
+                                          return;
+                                        }
+                                      }
+
+                                      final customerName =
+                                          selectedCustomer.name;
                                       final sale = _SaleRecord(
                                         id: 'S${DateTime.now().millisecondsSinceEpoch}',
                                         customerName: customerName,
@@ -3690,9 +3887,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       setState(() {
                                         selectedCustomer.loyaltyPoints +=
                                             _loyaltyPointsForAmount(grandTotal);
-                                        if (paymentMethod == 'INSTALLMENT') {
+                                        if (isCreditSale) {
                                           selectedCustomer.currentBalance +=
-                                              grandTotal;
+                                              outstandingAmount;
+                                        }
+
+                                        if (isCreditSale &&
+                                            outstandingAmount > 0) {
+                                          final creditEntry = _CreditSaleEntry(
+                                            id: 'CS${DateTime.now().microsecondsSinceEpoch}',
+                                            saleId: sale.id,
+                                            customerId: selectedCustomer.id,
+                                            customerName: selectedCustomer.name,
+                                            customerPhone:
+                                                selectedCustomer.phone,
+                                            customerAddress:
+                                                selectedCustomer.address,
+                                            subtotal: subtotal,
+                                            tax: taxAmount,
+                                            total: grandTotal,
+                                            amountPaidOnSale:
+                                                sanitizedPaidAmount,
+                                            outstandingAmount:
+                                                outstandingAmount,
+                                            paymentMethod: paymentMethod,
+                                            items: cartItems
+                                                .map(
+                                                  (line) =>
+                                                      '${line.product.name} x${line.qty} @ ${_money(line.product.price)} = ${_money(line.product.price * line.qty)}',
+                                                )
+                                                .toList(),
+                                            createdAt: sale.createdAt,
+                                          );
+
+                                          _customerCreditSales
+                                              .putIfAbsent(
+                                                selectedCustomer.id,
+                                                () => [],
+                                              )
+                                              .insert(0, creditEntry);
                                         }
 
                                         _sales.insert(0, sale);
@@ -3731,7 +3964,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            'Sale completed: ${sale.id}',
+                                            isCreditSale
+                                                ? 'Credit sale recorded: ${sale.id}'
+                                                : 'Sale completed: ${sale.id}',
                                           ),
                                         ),
                                       );
@@ -3958,7 +4193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       color: const Color(0xFFF3E8FA),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Text('Unit'),
+                                    child: Text(p.measureUnit),
                                   ),
                                 ),
                                 DataCell(Text(p.category)),
@@ -4603,6 +4838,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'CASH',
                         'CARD',
                         'CHEQUE',
+                        'CREDIT',
                         'INSTALLMENT',
                         'SERVICE',
                       ],
@@ -5377,7 +5613,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (query.isEmpty) return true;
           return c.name.toLowerCase().contains(query) ||
               c.phone.toLowerCase().contains(query) ||
-              c.vehicleNumber.toLowerCase().contains(query);
+              c.vehicleNumber.toLowerCase().contains(query) ||
+              c.address.toLowerCase().contains(query);
         })
         .toList();
 
@@ -5561,17 +5798,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 columns: const [
                                   DataColumn(label: Text('CUSTOMER')),
                                   DataColumn(label: Text('PHONE')),
+                                  DataColumn(label: Text('ADDRESS')),
                                   DataColumn(label: Text('OUTSTANDING')),
                                   DataColumn(label: Text('LIMIT')),
+                                  DataColumn(label: Text('LAST CREDIT SALE')),
                                   DataColumn(label: Text('ACTIONS')),
                                 ],
                                 rows: customersWithCredit.map((c) {
+                                  final latestCreditSale =
+                                      _customerCreditSales[c.id]?.isNotEmpty ==
+                                          true
+                                      ? _customerCreditSales[c.id]!.first
+                                      : null;
                                   return DataRow(
                                     cells: [
                                       DataCell(Text(c.name)),
                                       DataCell(Text(c.phone)),
+                                      DataCell(
+                                        SizedBox(
+                                          width: 180,
+                                          child: Text(
+                                            c.address.isEmpty
+                                                ? 'N/A'
+                                                : c.address,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
                                       DataCell(Text(_money(c.currentBalance))),
                                       DataCell(Text(_money(c.creditLimit))),
+                                      DataCell(
+                                        Text(
+                                          latestCreditSale == null
+                                              ? '-'
+                                              : '${latestCreditSale.saleId} (${_money(latestCreditSale.outstandingAmount)})',
+                                        ),
+                                      ),
                                       DataCell(
                                         Row(
                                           children: [
@@ -5583,6 +5845,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               child: const Text(
                                                 'Record Payment',
                                               ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            OutlinedButton(
+                                              onPressed: () =>
+                                                  _showCustomerCreditSalesHistory(
+                                                    c,
+                                                  ),
+                                              child: const Text('Sales'),
                                             ),
                                             const SizedBox(width: 8),
                                             IconButton(
@@ -8838,9 +9108,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     final descriptionController = TextEditingController();
     final costController = TextEditingController();
-    final unitController = TextEditingController(text: 'Unit');
     final warrantyController = TextEditingController(text: '0');
     String selectedType = 'Unit';
+    String selectedMeasureUnit =
+        (existing?.measureUnit.trim().isNotEmpty ?? false)
+        ? existing!.measureUnit.trim().toUpperCase()
+        : 'PIECE';
+    const measureUnits = [
+      'PIECE',
+      'KG',
+      'GRAM',
+      'LITER',
+      'ML',
+      'PACK',
+      'BOX',
+      'BOTTLE',
+    ];
 
     return showGeneralDialog<_ProductItem>(
       context: context,
@@ -9068,9 +9351,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text('Unit'),
+                                        const Text('Measurement Unit'),
                                         const SizedBox(height: 6),
-                                        TextField(controller: unitController),
+                                        DropdownButtonFormField<String>(
+                                          initialValue:
+                                              measureUnits.contains(
+                                                selectedMeasureUnit,
+                                              )
+                                              ? selectedMeasureUnit
+                                              : 'PIECE',
+                                          items: measureUnits
+                                              .map(
+                                                (unit) => DropdownMenuItem(
+                                                  value: unit,
+                                                  child: Text(unit),
+                                                ),
+                                              )
+                                              .toList(),
+                                          onChanged: (v) {
+                                            if (v == null) return;
+                                            setLocal(
+                                              () => selectedMeasureUnit = v,
+                                            );
+                                          },
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -9157,6 +9461,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               minStockController.text.trim(),
                                             ) ??
                                             0,
+                                        measureUnit: selectedMeasureUnit,
                                       ),
                                     ),
                                     icon: const Icon(Icons.qr_code_2_outlined),
@@ -9241,6 +9546,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         minStockController.text.trim(),
                                       ) ??
                                       0,
+                                  measureUnit: selectedMeasureUnit,
                                 );
                                 if (!_productCategories.any(
                                   (c) =>
@@ -9357,7 +9663,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          const Text('Vehicle Number (License Plate) *'),
+                          const Text('Vehicle Number (License Plate)'),
                           const SizedBox(height: 6),
                           TextField(
                             controller: vehicleController,
@@ -9373,7 +9679,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 14),
-                          const Text('Phone Number'),
+                          const Text('Phone Number *'),
                           const SizedBox(height: 6),
                           TextField(
                             controller: phoneController,
@@ -9391,7 +9697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          const Text('Address'),
+                          const Text('Address *'),
                           const SizedBox(height: 6),
                           TextField(
                             controller: addressController,
@@ -9429,6 +9735,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(width: 10),
                         ElevatedButton(
                           onPressed: () {
+                            final name = nameController.text.trim();
+                            final phone = phoneController.text.trim();
+                            final address = addressController.text.trim();
+
+                            if (name.isEmpty ||
+                                phone.isEmpty ||
+                                address.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Customer name, phone number, and address are required.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
                             final id =
                                 existing?.id ??
                                 'C${DateTime.now().millisecondsSinceEpoch % 100000}';
@@ -9436,11 +9759,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               context,
                               _CustomerItem(
                                 id: id,
-                                name: nameController.text.trim(),
+                                name: name,
                                 vehicleNumber: vehicleController.text.trim(),
-                                phone: phoneController.text.trim(),
+                                phone: phone,
                                 email: emailController.text.trim(),
-                                address: addressController.text.trim(),
+                                address: address,
                                 notes: notesController.text.trim(),
                                 creditLimit:
                                     double.tryParse(
@@ -12122,6 +12445,7 @@ class _ProductItem {
   String name;
   String category;
   String barcode;
+  String measureUnit;
   double price;
   int stock;
   int minStock;
@@ -12131,6 +12455,7 @@ class _ProductItem {
     required this.name,
     required this.category,
     this.barcode = '',
+    this.measureUnit = 'PIECE',
     required this.price,
     required this.stock,
     required this.minStock,
@@ -12142,6 +12467,7 @@ class _ProductItem {
       'name': name,
       'category': category,
       'barcode': barcode,
+      'measureUnit': measureUnit,
       'price': price,
       'stock': stock,
       'minStock': minStock,
@@ -12154,6 +12480,7 @@ class _ProductItem {
       name: (json['name'] ?? '').toString(),
       category: (json['category'] ?? '').toString(),
       barcode: (json['barcode'] ?? json['id'] ?? '').toString(),
+      measureUnit: (json['measureUnit'] ?? 'PIECE').toString().toUpperCase(),
       price: (json['price'] as num?)?.toDouble() ?? 0,
       stock: (json['stock'] as num?)?.toInt() ?? 0,
       minStock: (json['minStock'] as num?)?.toInt() ?? 0,
@@ -12188,6 +12515,82 @@ class _CreditPaymentItem {
       id: (json['id'] ?? '').toString(),
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       note: (json['note'] ?? '').toString(),
+      createdAt:
+          DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
+    );
+  }
+}
+
+class _CreditSaleEntry {
+  final String id;
+  final String saleId;
+  final String customerId;
+  final String customerName;
+  final String customerPhone;
+  final String customerAddress;
+  final double subtotal;
+  final double tax;
+  final double total;
+  final double amountPaidOnSale;
+  double outstandingAmount;
+  final String paymentMethod;
+  final List<String> items;
+  final DateTime createdAt;
+
+  _CreditSaleEntry({
+    required this.id,
+    required this.saleId,
+    required this.customerId,
+    required this.customerName,
+    required this.customerPhone,
+    required this.customerAddress,
+    required this.subtotal,
+    required this.tax,
+    required this.total,
+    required this.amountPaidOnSale,
+    required this.outstandingAmount,
+    required this.paymentMethod,
+    required this.items,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'saleId': saleId,
+      'customerId': customerId,
+      'customerName': customerName,
+      'customerPhone': customerPhone,
+      'customerAddress': customerAddress,
+      'subtotal': subtotal,
+      'tax': tax,
+      'total': total,
+      'amountPaidOnSale': amountPaidOnSale,
+      'outstandingAmount': outstandingAmount,
+      'paymentMethod': paymentMethod,
+      'items': items,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory _CreditSaleEntry.fromJson(Map<String, dynamic> json) {
+    return _CreditSaleEntry(
+      id: (json['id'] ?? '').toString(),
+      saleId: (json['saleId'] ?? '').toString(),
+      customerId: (json['customerId'] ?? '').toString(),
+      customerName: (json['customerName'] ?? '').toString(),
+      customerPhone: (json['customerPhone'] ?? '').toString(),
+      customerAddress: (json['customerAddress'] ?? '').toString(),
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
+      tax: (json['tax'] as num?)?.toDouble() ?? 0,
+      total: (json['total'] as num?)?.toDouble() ?? 0,
+      amountPaidOnSale: (json['amountPaidOnSale'] as num?)?.toDouble() ?? 0,
+      outstandingAmount: (json['outstandingAmount'] as num?)?.toDouble() ?? 0,
+      paymentMethod: (json['paymentMethod'] ?? '').toString(),
+      items: (json['items'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       createdAt:
           DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
           DateTime.now(),
